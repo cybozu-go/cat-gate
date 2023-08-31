@@ -1,0 +1,11 @@
+apiVersion: ctlptl.dev/v1alpha1
+kind: Registry
+name: cat-gate-registry
+port: 5151
+---
+apiVersion: ctlptl.dev/v1alpha1
+kind: Cluster
+name: kind-cat-gate-dev
+product: kind
+kubernetesVersion: v1.27.3
+registry: cat-gate-registry
