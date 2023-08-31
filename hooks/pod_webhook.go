@@ -2,7 +2,10 @@ package hooks
 
 import (
 	"context"
+	"crypto/sha256"
 	"fmt"
+	"sort"
+	"strings"
 
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -11,7 +14,7 @@ import (
 )
 
 const podSchedulingGateName = "cat-gate.cybozu.io/gate"
-const catGateGroupAnnotation = "cat-gate.cybozu.io/group"
+const catGateImagesHashAnnotation = "cat-gate.cybozu.io/images-hash"
 
 // log is for logging in this package.
 // var podLogger = logf.Log.WithName("pod-defaulter")
@@ -36,21 +39,28 @@ func (*PodDefaulter) Default(ctx context.Context, obj runtime.Object) error {
 		return fmt.Errorf("unknown newObj type %T", obj)
 	}
 
-	var owner string
-	for _, or := range pod.OwnerReferences {
-		if or.Controller != nil && *or.Controller {
-			owner = string(or.UID)
-		}
-	}
-	if owner == "" {
-		return nil
-	}
-
 	pod.Spec.SchedulingGates = append(pod.Spec.SchedulingGates, corev1.PodSchedulingGate{Name: podSchedulingGateName})
 	if pod.Annotations == nil {
 		pod.Annotations = make(map[string]string)
 	}
-	pod.Annotations[catGateGroupAnnotation] = owner
+
+	// コンテナ名一覧をスライスに入れたい
+	imageSet := make(map[string]struct{})
+	for _, c := range pod.Spec.InitContainers {
+		imageSet[c.Image] = struct{}{}
+	}
+	for _, c := range pod.Spec.Containers {
+		imageSet[c.Image] = struct{}{}
+	}
+	images := make([]string, 0)
+	for k := range imageSet {
+		images = append(images, k)
+	}
+	sort.Strings(images)
+	imagesByte := sha256.Sum256([]byte(strings.Join(images, ",")))
+	imagesHash := string(imagesByte[:])
+
+	pod.Annotations[catGateImagesHashAnnotation] = imagesHash
 
 	return nil
 }
