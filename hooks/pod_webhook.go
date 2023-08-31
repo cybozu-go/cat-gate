@@ -11,6 +11,7 @@ import (
 )
 
 const podSchedulingGateName = "cat-gate.cybozu.io/gate"
+const catGateGroupAnnotation = "cat-gate.cybozu.io/group"
 
 // log is for logging in this package.
 // var podLogger = logf.Log.WithName("pod-defaulter")
@@ -34,10 +35,22 @@ func (*PodDefaulter) Default(ctx context.Context, obj runtime.Object) error {
 	if !ok {
 		return fmt.Errorf("unknown newObj type %T", obj)
 	}
-	for _, c := range pod.Spec.Containers {
-		if c.ImagePullPolicy != corev1.PullAlways {
-			pod.Spec.SchedulingGates = append(pod.Spec.SchedulingGates, corev1.PodSchedulingGate{Name: podSchedulingGateName})
+
+	var owner string
+	for _, or := range pod.OwnerReferences {
+		if or.Controller != nil && *or.Controller {
+			owner = string(or.UID)
 		}
 	}
+	if owner == "" {
+		return nil
+	}
+
+	pod.Spec.SchedulingGates = append(pod.Spec.SchedulingGates, corev1.PodSchedulingGate{Name: podSchedulingGateName})
+	if pod.Annotations == nil {
+		pod.Annotations = make(map[string]string)
+	}
+	pod.Annotations[catGateGroupAnnotation] = owner
+
 	return nil
 }
