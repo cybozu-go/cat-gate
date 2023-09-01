@@ -3,6 +3,7 @@ package hooks
 import (
 	"context"
 	"crypto/sha256"
+	"encoding/hex"
 	"fmt"
 	"sort"
 	"strings"
@@ -44,7 +45,12 @@ func (*PodDefaulter) Default(ctx context.Context, obj runtime.Object) error {
 		pod.Annotations = make(map[string]string)
 	}
 
-	// コンテナ名一覧をスライスに入れたい
+	pod.Annotations[catGateImagesHashAnnotation] = generateImagesHash(pod)
+
+	return nil
+}
+
+func generateImagesHash(pod *corev1.Pod) string {
 	imageSet := make(map[string]struct{})
 	for _, c := range pod.Spec.InitContainers {
 		imageSet[c.Image] = struct{}{}
@@ -52,15 +58,15 @@ func (*PodDefaulter) Default(ctx context.Context, obj runtime.Object) error {
 	for _, c := range pod.Spec.Containers {
 		imageSet[c.Image] = struct{}{}
 	}
+
 	images := make([]string, 0)
 	for k := range imageSet {
 		images = append(images, k)
 	}
+
 	sort.Strings(images)
 	imagesByte := sha256.Sum256([]byte(strings.Join(images, ",")))
-	imagesHash := string(imagesByte[:])
+	imagesHash := hex.EncodeToString(imagesByte[:])
 
-	pod.Annotations[catGateImagesHashAnnotation] = imagesHash
-
-	return nil
+	return imagesHash
 }
