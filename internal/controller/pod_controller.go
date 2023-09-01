@@ -59,7 +59,10 @@ func (r *PodReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.R
 	annotations := reqPod.Annotations
 	if _, ok := annotations[constants.CatGateImagesHashAnnotation]; !ok {
 		logger.Error(errors.New("not found pod annotation"), "not found pod annotation")
-		removeSchedulingGate(reqPod)
+		err := r.removeSchedulingGate(ctx, reqPod)
+		if err != nil {
+			return ctrl.Result{}, err
+		}
 		return ctrl.Result{}, nil
 	}
 	reqImagesHash := annotations[constants.CatGateImagesHashAnnotation]
@@ -72,8 +75,12 @@ func (r *PodReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.R
 
 	// まず，イメージがありそうなノードの一覧を取得して，[]nodenameに入れる
 	nodeSet := make(map[string]struct{})
+
+	// schedulingGateが外れている（=イメージ取得を開始した(A)，あるいは完了した(B)）Podの数
+	numSchedulablePods := 0
+
+	// 起動済み（=イメージ取得を完了した(B)）Podの
 	numImagePulledPods := 0
-	numSchedulable := 0
 
 	for _, pod := range pods.Items {
 		// TODO: reqのannotationで絞る
@@ -87,7 +94,7 @@ func (r *PodReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.R
 		if existsSchedulingGate(pod) {
 			continue
 		}
-		numSchedulable += 1
+		numSchedulablePods += 1
 
 		specImageSet := make(map[string]struct{})
 		for _, c := range pod.Spec.Containers {
@@ -116,29 +123,40 @@ func (r *PodReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.R
 	const scaleRate = 2
 	capacity := len(nodeSet) * scaleRate
 
-	// schedulingGateが外れている（=イメージ取得を開始した(A)，あるいは完了した(B)）Podの数を取得
-	// numSchedulable :=
-	// 起動済み（=イメージ取得を完了した(B)）Podの数を取得
-	// numPulledImage :=
 	// イメージ取得中のPodの数を計算(=イメージ取得を開始した(A)もののみが得られる)
-	// numPullingImage := numSchedulable - numPulledImage
+	numImagePullingPods := numSchedulablePods - numImagePulledPods
+
 	// schedulingGateを外す処理
-	// if capacity > numPullingImage { //余裕があれば
-	// 外す
-	// }
+	if capacity > numImagePullingPods {
+		err := r.removeSchedulingGate(ctx, reqPod)
+		if err != nil {
+			return ctrl.Result{}, err
+		}
+	}
 
 	return ctrl.Result{}, nil
 }
 
-func removeSchedulingGate(pod *corev1.Pod) {
+func (r *PodReconciler) removeSchedulingGate(ctx context.Context, pod *corev1.Pod) error {
 	var filterdGates []corev1.PodSchedulingGate
+	existsGate := false
 	for _, gate := range pod.Spec.SchedulingGates {
 		if gate.Name == constants.PodSchedulingGateName {
+			existsGate = true
 			continue
 		}
 		filterdGates = append(filterdGates, gate)
 	}
 	pod.Spec.SchedulingGates = filterdGates
+	if existsGate {
+		logger := log.FromContext(ctx)
+		err := r.Update(ctx, pod)
+		if err != nil {
+			return err
+		}
+		logger.Info("Scheduling gate deleted")
+	}
+	return nil
 }
 
 func existsSchedulingGate(pod corev1.Pod) bool {
