@@ -115,7 +115,13 @@ func (r *PodReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.R
 	}
 
 	const scaleRate = 2
-	capacity := len(nodeSet)*scaleRate + 1
+	const minimumCapacity = 1
+
+	capacity := len(nodeSet) * scaleRate
+
+	if capacity < minimumCapacity {
+		capacity = minimumCapacity
+	}
 
 	numImagePullingPods := numSchedulablePods - numImagePulledPods
 
