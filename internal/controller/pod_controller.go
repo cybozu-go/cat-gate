@@ -73,17 +73,12 @@ func (r *PodReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.R
 		return ctrl.Result{}, err
 	}
 
-	// まず，イメージがありそうなノードの一覧を取得して，[]nodenameに入れる
 	nodeSet := make(map[string]struct{})
 
-	// schedulingGateが外れている（=イメージ取得を開始した(A)，あるいは完了した(B)）Podの数
 	numSchedulablePods := 0
-
-	// 起動済み（=イメージ取得を完了した(B)）Podの
 	numImagePulledPods := 0
 
 	for _, pod := range pods.Items {
-		// TODO: reqのannotationで絞る
 		if _, ok := pod.Annotations[constants.CatGateImagesHashAnnotation]; !ok {
 			continue
 		}
@@ -119,14 +114,11 @@ func (r *PodReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.R
 		}
 	}
 
-	// TODO: settingできるようにするかも
 	const scaleRate = 2
 	capacity := len(nodeSet) * scaleRate
 
-	// イメージ取得中のPodの数を計算(=イメージ取得を開始した(A)もののみが得られる)
 	numImagePullingPods := numSchedulablePods - numImagePulledPods
 
-	// schedulingGateを外す処理
 	if capacity > numImagePullingPods {
 		err := r.removeSchedulingGate(ctx, reqPod)
 		if err != nil {
