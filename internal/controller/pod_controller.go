@@ -115,7 +115,7 @@ func (r *PodReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.R
 	}
 
 	const scaleRate = 2
-	capacity := len(nodeSet) * scaleRate
+	capacity := len(nodeSet)*scaleRate + 1
 
 	numImagePullingPods := numSchedulablePods - numImagePulledPods
 
