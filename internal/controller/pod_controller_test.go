@@ -3,6 +3,7 @@ package controller
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"github.com/cybozu-go/cat-gate/internal/constants"
 	. "github.com/onsi/ginkgo/v2"
@@ -64,7 +65,7 @@ var _ = Describe("CatGate controller", func() {
 	})
 
 	It("should schedule x pods when 2 pods are already scheduled", func() {
-		testName := "multiple-pods"
+		testName := "multiple-pods-with-running-pods"
 		namespace := &corev1.Namespace{
 			ObjectMeta: metav1.ObjectMeta{
 				Name: testName,
@@ -74,9 +75,19 @@ var _ = Describe("CatGate controller", func() {
 		Expect(err).NotTo(HaveOccurred())
 
 		for i := 0; i < 8; i++ {
-			createNewPod(i, testName)
+			pod := createNewPod(i, testName)
+			if i < 2 {
+				updatePodStatus(pod, corev1.ContainerState{
+					Running: &corev1.ContainerStateRunning{},
+				})
+			}
 		}
 		pods := &corev1.PodList{}
+		// time.Sleep(10 * time.Second)
+		// err = k8sClient.List(ctx, pods, &client.ListOptions{Namespace: testName})
+		// Expect(err).NotTo(HaveOccurred())
+		// v, _ := yaml.Marshal(pods)
+		// fmt.Printf("%s", string(v))
 		Eventually(func(g Gomega) {
 			err := k8sClient.List(ctx, pods, &client.ListOptions{Namespace: testName})
 			g.Expect(err).NotTo(HaveOccurred())
@@ -86,12 +97,12 @@ var _ = Describe("CatGate controller", func() {
 					numSchedulable += 1
 				}
 			}
-			g.Expect(numSchedulable).To(Equal(1))
-		}).Should(Succeed())
+			g.Expect(numSchedulable).To(Equal(6))
+		}).WithPolling(time.Second).WithTimeout(30 * time.Second).Should(Succeed())
 	})
 })
 
-func createNewPod(index int, testName string) {
+func createNewPod(index int, testName string) *corev1.Pod {
 	newPod := &corev1.Pod{
 		ObjectMeta: metav1.ObjectMeta{
 			Namespace: testName,
@@ -114,5 +125,16 @@ func createNewPod(index int, testName string) {
 		},
 	}
 	err := k8sClient.Create(ctx, newPod)
+	Expect(err).NotTo(HaveOccurred())
+	return newPod
+}
+
+func updatePodStatus(pod *corev1.Pod, state corev1.ContainerState) {
+	pod.Status.ContainerStatuses = []corev1.ContainerStatus{
+		{
+			State: state,
+		},
+	}
+	err := k8sClient.Status().Update(ctx, pod)
 	Expect(err).NotTo(HaveOccurred())
 }

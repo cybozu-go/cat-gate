@@ -19,6 +19,7 @@ package controller
 import (
 	"context"
 	"errors"
+	"time"
 
 	"github.com/cybozu-go/cat-gate/internal/constants"
 	corev1 "k8s.io/api/core/v1"
@@ -132,7 +133,10 @@ func (r *PodReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.R
 		}
 	}
 
-	return ctrl.Result{}, nil
+	return ctrl.Result{
+		Requeue:      true,
+		RequeueAfter: 3 * time.Second,
+	}, nil
 }
 
 func (r *PodReconciler) removeSchedulingGate(ctx context.Context, pod *corev1.Pod) error {
