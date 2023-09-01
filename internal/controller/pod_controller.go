@@ -72,6 +72,8 @@ func (r *PodReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.R
 
 	// まず，イメージがありそうなノードの一覧を取得して，[]nodenameに入れる
 	nodeSet := make(map[string]struct{})
+	numImagePulledPods := 0
+	numSchedulable := 0
 
 	for _, pod := range pods.Items {
 		// TODO: reqのannotationで絞る
@@ -81,14 +83,13 @@ func (r *PodReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.R
 		if pod.Annotations[constants.CatGateImagesHashAnnotation] != reqImagesHash {
 			continue
 		}
+
 		if existsSchedulingGate(pod) {
 			continue
 		}
+		numSchedulable += 1
 
 		specImageSet := make(map[string]struct{})
-		for _, c := range pod.Spec.InitContainers {
-			specImageSet[c.Image] = struct{}{}
-		}
 		for _, c := range pod.Spec.Containers {
 			specImageSet[c.Image] = struct{}{}
 		}
@@ -98,7 +99,7 @@ func (r *PodReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.R
 		allStarted := true
 		statuses := pod.Status.ContainerStatuses
 		for _, status := range statuses {
-			if status.Started == nil || !*status.Started {
+			if status.State.Running == nil && status.State.Terminated == nil {
 				allStarted = false
 				break
 			}
@@ -107,6 +108,7 @@ func (r *PodReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.R
 
 		if allStarted && len(checkImageSet) == 0 {
 			nodeSet[pod.Spec.Hostname] = struct{}{}
+			numImagePulledPods += 1
 		}
 	}
 
