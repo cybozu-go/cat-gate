@@ -8,14 +8,12 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/cybozu-go/cat-gate/internal/constants"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
 )
-
-const podSchedulingGateName = "cat-gate.cybozu.io/gate"
-const catGateImagesHashAnnotation = "cat-gate.cybozu.io/images-hash"
 
 // log is for logging in this package.
 // var podLogger = logf.Log.WithName("pod-defaulter")
@@ -40,12 +38,12 @@ func (*PodDefaulter) Default(ctx context.Context, obj runtime.Object) error {
 		return fmt.Errorf("unknown newObj type %T", obj)
 	}
 
-	pod.Spec.SchedulingGates = append(pod.Spec.SchedulingGates, corev1.PodSchedulingGate{Name: podSchedulingGateName})
+	pod.Spec.SchedulingGates = append(pod.Spec.SchedulingGates, corev1.PodSchedulingGate{Name: constants.PodSchedulingGateName})
 	if pod.Annotations == nil {
 		pod.Annotations = make(map[string]string)
 	}
 
-	pod.Annotations[catGateImagesHashAnnotation] = generateImagesHash(pod)
+	pod.Annotations[constants.CatGateImagesHashAnnotation] = generateImagesHash(pod)
 
 	return nil
 }

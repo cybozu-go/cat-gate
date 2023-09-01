@@ -18,6 +18,7 @@ package controller
 
 import (
 	"context"
+	"errors"
 
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -46,15 +47,53 @@ type PodReconciler struct {
 // For more details, check Reconcile and its Result here:
 // - https://pkg.go.dev/sigs.k8s.io/controller-runtime@v0.15.0/pkg/reconcile
 func (r *PodReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
-	_ = log.FromContext(ctx)
+	logger := log.FromContext(ctx)
 
-	// TODO(user): your logic here
+	reqPod := &corev1.Pod{}
+	err := r.Get(ctx, req.NamespacedName, reqPod)
+	if err != nil {
+		return ctrl.Result{}, err
+	}
+	annotations := reqPod.Annotations
+	if annotations == nil {
+		logger.Error(errors.New("not found pod annotation"), "not found pod annotation")
+		return ctrl.Result{}, nil
+	}
+
+	// TODO: reqのannotationで絞る
+	pods := &corev1.PodList{}
+	err = r.List(ctx, pods)
+	if err != nil {
+		return ctrl.Result{}, err
+	}
+
+	// まず，イメージがありそうなノードの一覧を取得して，[]nodenameに入れる
+	// for _, pod := range pods.Items {
+	// 	annotations := pod.Annotations
+	// 	if annotations
+	// }
+	// capacity := len(xxxx) * settings.ScaleTimes(2とか)
+
+	// schedulingGateが外れている（=イメージ取得を開始した(A)，あるいは完了した(B)）Podの数を取得
+	// numSchedulable :=
+	// 起動済み（=イメージ取得を完了した(B)）Podの数を取得
+	// numPulledImage :=
+	// イメージ取得中のPodの数を計算(=イメージ取得を開始した(A)もののみが得られる)
+	// numPullingImage := numSchedulable - numPulledImage
+
+	// schedulingGateを外す処理
+	// if capacity > numPullingImage { //余裕があれば
+	// 外す
+	// }
 
 	return ctrl.Result{}, nil
 }
 
 // SetupWithManager sets up the controller with the Manager.
 func (r *PodReconciler) SetupWithManager(mgr ctrl.Manager) error {
+	// schedulingGateがついているかでfiltering
+	// reconcile頻度を減らす
+
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&corev1.Pod{}).
 		Complete(r)

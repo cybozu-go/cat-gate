@@ -3,6 +3,7 @@ package hooks
 import (
 	"context"
 
+	"github.com/cybozu-go/cat-gate/internal/constants"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	corev1 "k8s.io/api/core/v1"
@@ -42,7 +43,7 @@ var _ = Describe("Webhook Test", func() {
 		err = k8sClient.Get(ctx, client.ObjectKey{Name: "sample", Namespace: "default"}, pod)
 
 		Expect(err).NotTo(HaveOccurred())
-		Expect(pod.Spec.SchedulingGates).To(ConsistOf(corev1.PodSchedulingGate{Name: podSchedulingGateName}))
-		Expect(pod.Annotations).To(HaveKeyWithValue(catGateImagesHashAnnotation, "060e64ec0b5abc015254466dc4d0ec89bc4e996121ff5b0f7fc120df3f15954e"))
+		Expect(pod.Spec.SchedulingGates).To(ConsistOf(corev1.PodSchedulingGate{Name: constants.PodSchedulingGateName}))
+		Expect(pod.Annotations).To(HaveKeyWithValue(constants.CatGateImagesHashAnnotation, "060e64ec0b5abc015254466dc4d0ec89bc4e996121ff5b0f7fc120df3f15954e"))
 	})
 })
