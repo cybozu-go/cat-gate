@@ -57,7 +57,7 @@ func (r *PodReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.R
 	}
 
 	annotations := reqPod.Annotations
-	if _, ok := annotations[constants.CatGateImagesHashAnnotation] ; !ok {
+	if _, ok := annotations[constants.CatGateImagesHashAnnotation]; !ok {
 		logger.Error(errors.New("not found pod annotation"), "not found pod annotation")
 		removeSchedulingGate(reqPod)
 		return ctrl.Result{}, nil
@@ -71,24 +71,55 @@ func (r *PodReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.R
 	}
 
 	// まず，イメージがありそうなノードの一覧を取得して，[]nodenameに入れる
+	nodeSet := make(map[string]struct{})
+
 	for _, pod := range pods.Items {
 		// TODO: reqのannotationで絞る
-		if _, ok := pod.Annotations[constants.CatGateImagesHashAnnotation] ; !ok {
+		if _, ok := pod.Annotations[constants.CatGateImagesHashAnnotation]; !ok {
 			continue
 		}
 		if pod.Annotations[constants.CatGateImagesHashAnnotation] != reqImagesHash {
 			continue
 		}
+		if existsSchedulingGate(pod) {
+			continue
+		}
 
-		// capacity := len(xxxx) * settings.ScaleTimes(2とか)
+		specImageSet := make(map[string]struct{})
+		for _, c := range pod.Spec.InitContainers {
+			specImageSet[c.Image] = struct{}{}
+		}
+		for _, c := range pod.Spec.Containers {
+			specImageSet[c.Image] = struct{}{}
+		}
 
-		// schedulingGateが外れている（=イメージ取得を開始した(A)，あるいは完了した(B)）Podの数を取得
-		// numSchedulable :=
-		// 起動済み（=イメージ取得を完了した(B)）Podの数を取得
-		// numPulledImage :=
-		// イメージ取得中のPodの数を計算(=イメージ取得を開始した(A)もののみが得られる)
-		// numPullingImage := numSchedulable - numPulledImage
+		checkImageSet := specImageSet
+
+		allStarted := true
+		statuses := pod.Status.ContainerStatuses
+		for _, status := range statuses {
+			if status.Started == nil || !*status.Started {
+				allStarted = false
+				break
+			}
+			delete(checkImageSet, status.Image)
+		}
+
+		if allStarted && len(checkImageSet) == 0 {
+			nodeSet[pod.Spec.Hostname] = struct{}{}
+		}
 	}
+
+	// TODO: settingできるようにするかも
+	const scaleRate = 2
+	capacity := len(nodeSet) * scaleRate
+
+	// schedulingGateが外れている（=イメージ取得を開始した(A)，あるいは完了した(B)）Podの数を取得
+	// numSchedulable :=
+	// 起動済み（=イメージ取得を完了した(B)）Podの数を取得
+	// numPulledImage :=
+	// イメージ取得中のPodの数を計算(=イメージ取得を開始した(A)もののみが得られる)
+	// numPullingImage := numSchedulable - numPulledImage
 	// schedulingGateを外す処理
 	// if capacity > numPullingImage { //余裕があれば
 	// 外す
@@ -106,6 +137,15 @@ func removeSchedulingGate(pod *corev1.Pod) {
 		filterdGates = append(filterdGates, gate)
 	}
 	pod.Spec.SchedulingGates = filterdGates
+}
+
+func existsSchedulingGate(pod corev1.Pod) bool {
+	for _, gate := range pod.Spec.SchedulingGates {
+		if gate.Name == constants.PodSchedulingGateName {
+			return true
+		}
+	}
+	return false
 }
 
 // SetupWithManager sets up the controller with the Manager.
