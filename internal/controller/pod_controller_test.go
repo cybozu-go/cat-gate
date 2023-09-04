@@ -58,7 +58,7 @@ var _ = Describe("CatGate controller", func() {
 			g.Expect(err).NotTo(HaveOccurred())
 			numSchedulable := 0
 			for _, pod := range pods.Items {
-				if !existsSchedulingGate(pod) {
+				if !existsSchedulingGate(&pod) {
 					numSchedulable += 1
 				}
 			}
@@ -86,7 +86,7 @@ var _ = Describe("CatGate controller", func() {
 			g.Expect(err).NotTo(HaveOccurred())
 			numSchedulable := 0
 			for _, pod := range pods.Items {
-				if !existsSchedulingGate(pod) {
+				if !existsSchedulingGate(&pod) {
 					numSchedulable += 1
 				}
 			}
@@ -99,7 +99,7 @@ var _ = Describe("CatGate controller", func() {
 			g.Expect(err).NotTo(HaveOccurred())
 			numSchedulable := 0
 			for _, pod := range pods.Items {
-				if !existsSchedulingGate(pod) {
+				if !existsSchedulingGate(&pod) {
 					numSchedulable += 1
 				}
 			}
@@ -112,11 +112,42 @@ var _ = Describe("CatGate controller", func() {
 			g.Expect(err).NotTo(HaveOccurred())
 			numSchedulable := 0
 			for _, pod := range pods.Items {
-				if !existsSchedulingGate(pod) {
+				if !existsSchedulingGate(&pod) {
 					numSchedulable += 1
 				}
 			}
 			g.Expect(numSchedulable).To(Equal(8))
+		}).Should(Succeed())
+	})
+
+	It("should remove scheduling gate when annotation force-removed", func() {
+		testName := "remove-scheduling-gate-fail-safe"
+		namespace := &corev1.Namespace{
+			ObjectMeta: metav1.ObjectMeta{
+				Name: testName,
+			},
+		}
+		err := k8sClient.Create(ctx, namespace)
+		Expect(err).NotTo(HaveOccurred())
+
+		createNewPod(0, testName)
+
+		pod := &corev1.Pod{}
+		Eventually(func(g Gomega) {
+			err = k8sClient.Get(ctx, client.ObjectKey{Name: fmt.Sprintf("%s-pod-%d", testName, 0), Namespace: testName}, pod)
+			g.Expect(err).NotTo(HaveOccurred())
+			g.Expect(pod.Spec.SchedulingGates).NotTo(ConsistOf(corev1.PodSchedulingGate{Name: constants.PodSchedulingGateName}))
+		}).Should(Succeed())
+
+		pod = createNewPod(1, testName)
+		delete(pod.Annotations, constants.CatGateImagesHashAnnotation)
+		err = k8sClient.Update(ctx, pod)
+		Expect(err).NotTo(HaveOccurred())
+
+		Eventually(func(g Gomega) {
+			err = k8sClient.Get(ctx, client.ObjectKey{Name: fmt.Sprintf("%s-pod-%d", testName, 1), Namespace: testName}, pod)
+			g.Expect(err).NotTo(HaveOccurred())
+			g.Expect(pod.Spec.SchedulingGates).NotTo(ConsistOf(corev1.PodSchedulingGate{Name: constants.PodSchedulingGateName}))
 		}).Should(Succeed())
 	})
 })
@@ -154,7 +185,7 @@ func updateStatusForPodWithSchedulingGate() {
 	Expect(err).NotTo(HaveOccurred())
 
 	for _, pod := range pods.Items {
-		if !existsSchedulingGate(pod) {
+		if !existsSchedulingGate(&pod) {
 			updatePodStatus(&pod, corev1.ContainerState{Running: &corev1.ContainerStateRunning{}})
 		}
 	}

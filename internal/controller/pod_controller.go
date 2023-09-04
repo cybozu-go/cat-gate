@@ -26,7 +26,9 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/event"
 	"sigs.k8s.io/controller-runtime/pkg/log"
+	"sigs.k8s.io/controller-runtime/pkg/predicate"
 )
 
 // PodReconciler reconciles a Pod object
@@ -80,7 +82,7 @@ func (r *PodReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.R
 	numImagePulledPods := 0
 
 	for _, pod := range pods.Items {
-		if existsSchedulingGate(pod) {
+		if existsSchedulingGate(&pod) {
 			continue
 		}
 		numSchedulablePods += 1
@@ -146,7 +148,7 @@ func (r *PodReconciler) removeSchedulingGate(ctx context.Context, pod *corev1.Po
 	return nil
 }
 
-func existsSchedulingGate(pod corev1.Pod) bool {
+func existsSchedulingGate(pod *corev1.Pod) bool {
 	for _, gate := range pod.Spec.SchedulingGates {
 		if gate.Name == constants.PodSchedulingGateName {
 			return true
@@ -157,8 +159,20 @@ func existsSchedulingGate(pod corev1.Pod) bool {
 
 // SetupWithManager sets up the controller with the Manager.
 func (r *PodReconciler) SetupWithManager(mgr ctrl.Manager) error {
-	// reconcile頻度を減らす
+	pred := func(obj client.Object) bool {
+		pod, ok := obj.(*corev1.Pod)
+		if !ok {
+			return false
+		}
+		return existsSchedulingGate(pod)
+	}
+
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&corev1.Pod{}).
+		WithEventFilter(predicate.Funcs{
+			CreateFunc: func(e event.CreateEvent) bool { return pred(e.Object) },
+			UpdateFunc: func(e event.UpdateEvent) bool { return pred(e.ObjectNew) },
+			DeleteFunc: func(e event.DeleteEvent) bool { return pred(e.Object) },
+		}).
 		Complete(r)
 }
