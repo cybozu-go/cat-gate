@@ -69,7 +69,7 @@ func (r *PodReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.R
 	reqImagesHash := annotations[constants.CatGateImagesHashAnnotation]
 
 	pods := &corev1.PodList{}
-	err = r.List(ctx, pods)
+	err = r.List(ctx, pods, client.MatchingFields{constants.ImageHashAnnotationField: reqImagesHash}, client.InNamespace(req.Namespace))
 	if err != nil {
 		return ctrl.Result{}, err
 	}
@@ -80,13 +80,6 @@ func (r *PodReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.R
 	numImagePulledPods := 0
 
 	for _, pod := range pods.Items {
-		if _, ok := pod.Annotations[constants.CatGateImagesHashAnnotation]; !ok {
-			continue
-		}
-		if pod.Annotations[constants.CatGateImagesHashAnnotation] != reqImagesHash {
-			continue
-		}
-
 		if existsSchedulingGate(pod) {
 			continue
 		}
@@ -164,9 +157,7 @@ func existsSchedulingGate(pod corev1.Pod) bool {
 
 // SetupWithManager sets up the controller with the Manager.
 func (r *PodReconciler) SetupWithManager(mgr ctrl.Manager) error {
-	// schedulingGateがついているかでfiltering
 	// reconcile頻度を減らす
-
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&corev1.Pod{}).
 		Complete(r)

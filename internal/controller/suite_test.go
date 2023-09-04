@@ -26,6 +26,7 @@ import (
 	"time"
 
 	"github.com/cybozu-go/cat-gate/hooks"
+	"github.com/cybozu-go/cat-gate/internal/indexing"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -97,8 +98,11 @@ var _ = BeforeSuite(func() {
 	})
 	Expect(err).ToNot(HaveOccurred())
 
+	err = indexing.SetupIndexForPod(ctx, mgr)
+	Expect(err).NotTo(HaveOccurred())
+
 	reconciler := PodReconciler{
-		Client: k8sClient,
+		Client: mgr.GetClient(),
 		Scheme: scheme,
 	}
 	err = reconciler.SetupWithManager(mgr)
