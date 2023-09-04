@@ -1,0 +1,20 @@
+before:
+  hooks:
+    - make release-manifests-build
+
+builds:
+  - skip: true
+
+changelog:
+  skip: true
+
+release:
+  github:
+    owner: cybozu-go
+    name: cat-gate
+  prerelease: auto
+  name_template: "Release {{ .Tag }}"
+  footer: |
+    See [CHANGELOG.md](./CHANGELOG.md) for details.
+  extra_files:
+    - glob: build/install.yaml
