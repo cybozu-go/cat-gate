@@ -4,9 +4,6 @@ import (
 	"context"
 	"fmt"
 
-	// "time"
-
-	// "github.com/cybozu-go/cat-gate/internal/constants"
 	"github.com/cybozu-go/cat-gate/internal/constants"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
