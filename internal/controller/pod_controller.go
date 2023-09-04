@@ -18,7 +18,6 @@ package controller
 
 import (
 	"context"
-	"errors"
 	"time"
 
 	"github.com/cybozu-go/cat-gate/internal/constants"
@@ -42,6 +41,8 @@ const scaleRate = 2
 
 // minimumCapacity the number of scheduling gates to remove when no node have the image.
 const minimumCapacity = 1
+
+const levelWarning = 1
 
 //+kubebuilder:rbac:groups=core,resources=pods,verbs=get;list;watch;create;update;patch;delete
 //+kubebuilder:rbac:groups=core,resources=pods/status,verbs=get;update;patch
@@ -67,9 +68,10 @@ func (r *PodReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.R
 
 	annotations := reqPod.Annotations
 	if _, ok := annotations[constants.CatGateImagesHashAnnotation]; !ok {
-		logger.Error(errors.New("not found pod annotation"), "not found pod annotation")
+		logger.V(levelWarning).Info("pod annotation not found")
 		err := r.removeSchedulingGate(ctx, reqPod)
 		if err != nil {
+			logger.Error(err, "failed to remove scheduling gate")
 			return ctrl.Result{}, err
 		}
 		return ctrl.Result{}, nil
@@ -79,6 +81,7 @@ func (r *PodReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.R
 	pods := &corev1.PodList{}
 	err = r.List(ctx, pods, client.MatchingFields{constants.ImageHashAnnotationField: reqImagesHash}, client.InNamespace(req.Namespace))
 	if err != nil {
+		logger.Error(err, "failed to list pods")
 		return ctrl.Result{}, err
 	}
 
@@ -119,6 +122,7 @@ func (r *PodReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.R
 	if capacity > numImagePullingPods {
 		err := r.removeSchedulingGate(ctx, reqPod)
 		if err != nil {
+			logger.Error(err, "failed to remove scheduling gate")
 			return ctrl.Result{}, err
 		}
 	}
@@ -146,7 +150,7 @@ func (r *PodReconciler) removeSchedulingGate(ctx context.Context, pod *corev1.Po
 		if err != nil {
 			return err
 		}
-		logger.Info("Scheduling gate deleted")
+		logger.Info("scheduling gate deleted")
 	}
 	return nil
 }
