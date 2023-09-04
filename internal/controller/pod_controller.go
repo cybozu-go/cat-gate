@@ -92,13 +92,6 @@ func (r *PodReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.R
 		}
 		numSchedulablePods += 1
 
-		specImageSet := make(map[string]struct{})
-		for _, c := range pod.Spec.Containers {
-			specImageSet[c.Image] = struct{}{}
-		}
-
-		checkImageSet := specImageSet
-
 		allStarted := true
 		statuses := pod.Status.ContainerStatuses
 		for _, status := range statuses {
@@ -106,10 +99,9 @@ func (r *PodReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.R
 				allStarted = false
 				break
 			}
-			delete(checkImageSet, status.Image)
 		}
 
-		if allStarted && len(checkImageSet) == 0 {
+		if allStarted && len(pod.Spec.Containers) == len(statuses) {
 			nodeSet[pod.Spec.Hostname] = struct{}{}
 			numImagePulledPods += 1
 		}

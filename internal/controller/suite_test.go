@@ -52,6 +52,9 @@ var scheme = runtime.NewScheme()
 func TestControllers(t *testing.T) {
 	RegisterFailHandler(Fail)
 
+	SetDefaultEventuallyTimeout(10 * time.Second)
+	SetDefaultEventuallyPollingInterval(100 * time.Millisecond)
+
 	RunSpecs(t, "Controller Suite")
 }
 
