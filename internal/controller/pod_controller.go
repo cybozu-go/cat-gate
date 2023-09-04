@@ -37,6 +37,12 @@ type PodReconciler struct {
 	Scheme *runtime.Scheme
 }
 
+// scaleRate is the rate at which scheduling gates are opened per node with image.
+const scaleRate = 2
+
+// minimumCapacity the number of scheduling gates to remove when no node have the image.
+const minimumCapacity = 1
+
 //+kubebuilder:rbac:groups=core,resources=pods,verbs=get;list;watch;create;update;patch;delete
 //+kubebuilder:rbac:groups=core,resources=pods/status,verbs=get;update;patch
 //+kubebuilder:rbac:groups=core,resources=pods/finalizers,verbs=update
@@ -101,9 +107,6 @@ func (r *PodReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.R
 			numImagePulledPods += 1
 		}
 	}
-
-	const scaleRate = 2
-	const minimumCapacity = 1
 
 	capacity := len(nodeSet) * scaleRate
 

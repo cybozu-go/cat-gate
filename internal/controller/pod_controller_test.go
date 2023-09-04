@@ -92,7 +92,7 @@ var _ = Describe("CatGate controller", func() {
 			}
 			g.Expect(numSchedulable).To(Equal(1))
 		}).Should(Succeed())
-		updateStatusForPodWithSchedulingGate()
+		updateStatusForPodWithSchedulingGate(testName)
 
 		Eventually(func(g Gomega) {
 			err := k8sClient.List(ctx, pods, &client.ListOptions{Namespace: testName})
@@ -105,7 +105,7 @@ var _ = Describe("CatGate controller", func() {
 			}
 			g.Expect(numSchedulable).To(Equal(3))
 		}).Should(Succeed())
-		updateStatusForPodWithSchedulingGate()
+		updateStatusForPodWithSchedulingGate(testName)
 
 		Eventually(func(g Gomega) {
 			err := k8sClient.List(ctx, pods, &client.ListOptions{Namespace: testName})
@@ -150,6 +150,60 @@ var _ = Describe("CatGate controller", func() {
 			g.Expect(pod.Spec.SchedulingGates).NotTo(ConsistOf(corev1.PodSchedulingGate{Name: constants.PodSchedulingGateName}))
 		}).Should(Succeed())
 	})
+
+	It("should limit number of schedulable pods based on status", func() {
+		testName := "multiple-pods-with-some-running-pods"
+		namespace := &corev1.Namespace{
+			ObjectMeta: metav1.ObjectMeta{
+				Name: testName,
+			},
+		}
+		err := k8sClient.Create(ctx, namespace)
+		Expect(err).NotTo(HaveOccurred())
+
+		for i := 0; i < 8; i++ {
+			createNewPod(i, testName)
+		}
+		pods := &corev1.PodList{}
+
+		Eventually(func(g Gomega) {
+			err := k8sClient.List(ctx, pods, &client.ListOptions{Namespace: testName})
+			g.Expect(err).NotTo(HaveOccurred())
+			numSchedulable := 0
+			for _, pod := range pods.Items {
+				if !existsSchedulingGate(&pod) {
+					numSchedulable += 1
+				}
+			}
+			g.Expect(numSchedulable).To(Equal(1))
+		}).Should(Succeed())
+		updateStatusForPodWithSchedulingGate(testName)
+
+		Eventually(func(g Gomega) {
+			err := k8sClient.List(ctx, pods, &client.ListOptions{Namespace: testName})
+			g.Expect(err).NotTo(HaveOccurred())
+			numSchedulable := 0
+			for _, pod := range pods.Items {
+				if !existsSchedulingGate(&pod) {
+					numSchedulable += 1
+				}
+			}
+			g.Expect(numSchedulable).To(Equal(3))
+		}).Should(Succeed())
+		updateStatusForOnePodWithSchedulingGate(testName)
+
+		Eventually(func(g Gomega) {
+			err := k8sClient.List(ctx, pods, &client.ListOptions{Namespace: testName})
+			g.Expect(err).NotTo(HaveOccurred())
+			numSchedulable := 0
+			for _, pod := range pods.Items {
+				if !existsSchedulingGate(&pod) {
+					numSchedulable += 1
+				}
+			}
+			g.Expect(numSchedulable).To(Equal(6))
+		}).Should(Succeed())
+	})
 })
 
 func createNewPod(index int, testName string) *corev1.Pod {
@@ -178,15 +232,27 @@ func createNewPod(index int, testName string) *corev1.Pod {
 	Expect(err).NotTo(HaveOccurred())
 	return newPod
 }
-
-func updateStatusForPodWithSchedulingGate() {
+func updateStatusForPodWithSchedulingGate(namespace string) {
 	pods := &corev1.PodList{}
-	err := k8sClient.List(ctx, pods)
+	err := k8sClient.List(ctx, pods, client.InNamespace(namespace))
 	Expect(err).NotTo(HaveOccurred())
 
 	for _, pod := range pods.Items {
 		if !existsSchedulingGate(&pod) {
 			updatePodStatus(&pod, corev1.ContainerState{Running: &corev1.ContainerStateRunning{}})
+		}
+	}
+}
+
+func updateStatusForOnePodWithSchedulingGate(namespace string) {
+	pods := &corev1.PodList{}
+	err := k8sClient.List(ctx, pods, client.InNamespace(namespace))
+	Expect(err).NotTo(HaveOccurred())
+
+	for _, pod := range pods.Items {
+		if !existsSchedulingGate(&pod) && len(pod.Status.ContainerStatuses) == 0 {
+			updatePodStatus(&pod, corev1.ContainerState{Running: &corev1.ContainerStateRunning{}})
+			break
 		}
 	}
 }
