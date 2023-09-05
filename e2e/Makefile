@@ -33,7 +33,7 @@ setup:
 start:
 	kind create cluster --name=$(KIND_CLUSTER_NAME) --config=$(KIND_CONFIG) --image=kindest/node:v$(E2ETEST_K8S_VERSION) --wait 1m
 	$(MAKE) -C ../ docker-build
-	kind load docker-image cat-gate:dev --name=$(KIND_CLUSTER_NAME)
+	kind load docker-image cat-gate:latest --name=$(KIND_CLUSTER_NAME)
 	$(KUBECTL) apply -f https://github.com/jetstack/cert-manager/releases/download/v$(CERT_MANAGER_VERSION)/cert-manager.yaml
 	$(KUBECTL) -n cert-manager wait --for=condition=available --timeout=180s --all deployments
 	$(KUBECTL) apply -k ../config/default
@@ -54,5 +54,5 @@ logs:
 .PHONY: stop
 stop:
 	kind delete cluster --name=$(KIND_CLUSTER_NAME)
-	-docker image rm cat-gate:dev
+	-docker image rm cat-gate:latest
 	-docker image prune -f
