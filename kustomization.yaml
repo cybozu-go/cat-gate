@@ -1,0 +1,7 @@
+resources:
+- config/default
+
+images:
+- name: cat-gate
+  newName: ghcr.io/cybozu-go/cat-gate
+  newTag: 0.1.0

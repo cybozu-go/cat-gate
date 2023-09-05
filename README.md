@@ -3,10 +3,10 @@
 [![PkgGoDev](https://pkg.go.dev/badge/github.com/cybozu-go/cat-gate?tab=overview)](https://pkg.go.dev/github.com/cybozu-go/cat-gate?tab=overview)
 [![Go Report Card](https://goreportcard.com/badge/github.com/cybozu-go/cat-gate)](https://goreportcard.com/report/github.com/cybozu-go/cat-gate)
 
-Template repository for Neco
-============================
+Cat-gate
+========
 
-**Project Status**: Initial development
+**Project Status**: Alpha
 
 ## Documentation
 

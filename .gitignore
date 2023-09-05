@@ -17,6 +17,7 @@
 
 # Generated files
 /bin
+/build
 /docs/book
 
 # editorconfig

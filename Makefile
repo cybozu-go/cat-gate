@@ -76,6 +76,12 @@ test: manifests generate fmt vet envtest ## Run tests.
 build: manifests generate fmt ## Build manager binary.
 	CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o bin/manager cmd/main.go
 
+.PHONY: release-manifests-build
+release-manifests-build: kustomize
+	rm -rf build
+	mkdir -p build
+	$(KUSTOMIZE) build . > build/install.yaml
+
 .PHONY: run
 run: manifests generate fmt vet ## Run a controller from your host.
 	go run ./cmd/main.go
