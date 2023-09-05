@@ -18,6 +18,7 @@ package controller
 
 import (
 	"context"
+	"time"
 
 	"github.com/cybozu-go/cat-gate/internal/constants"
 	corev1 "k8s.io/api/core/v1"
@@ -42,6 +43,9 @@ const scaleRate = 2
 const minimumCapacity = 1
 
 const levelWarning = 1
+const levelDebug = -1
+
+var requeueSeconds = 10
 
 //+kubebuilder:rbac:groups=core,resources=pods,verbs=get;list;watch;create;update;patch;delete
 //+kubebuilder:rbac:groups=core,resources=pods/status,verbs=get;update;patch
@@ -102,7 +106,7 @@ func (r *PodReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.R
 		}
 
 		if allStarted && len(pod.Spec.Containers) == len(statuses) {
-			nodeSet[pod.Spec.Hostname] = struct{}{}
+			nodeSet[pod.Status.HostIP] = struct{}{}
 			numImagePulledPods += 1
 		}
 	}
@@ -112,8 +116,10 @@ func (r *PodReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.R
 	if capacity < minimumCapacity {
 		capacity = minimumCapacity
 	}
+	logger.V(levelDebug).Info("schedule capacity", "capacity", capacity, "(nodeSet)", (nodeSet))
 
 	numImagePullingPods := numSchedulablePods - numImagePulledPods
+	logger.V(levelDebug).Info("scheduling progress", "numSchedulablePods", numSchedulablePods, "numImagePulledPods", numImagePulledPods, "numImagePullingPods", numImagePullingPods)
 
 	if capacity > numImagePullingPods {
 		err := r.removeSchedulingGate(ctx, reqPod)
@@ -124,7 +130,7 @@ func (r *PodReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.R
 	}
 
 	return ctrl.Result{
-		Requeue: true,
+		RequeueAfter: time.Second * time.Duration(requeueSeconds),
 	}, nil
 }
 
