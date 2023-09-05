@@ -15,6 +15,7 @@ import (
 var _ = Describe("CatGate controller", func() {
 
 	ctx := context.Background()
+	requeueSeconds = 1
 
 	It("should schedule a pod if it is created solely", func() {
 		testName := "single-pod"
@@ -224,7 +225,6 @@ func createNewPod(index int, testName string) *corev1.Pod {
 					Image: testName + ".example.com/sample2-image:1.0.0",
 				},
 			},
-			Hostname: fmt.Sprintf("%s-hostname-%d", testName, index),
 		},
 	}
 	err := k8sClient.Create(ctx, newPod)
@@ -263,6 +263,7 @@ func updatePodStatus(pod *corev1.Pod, state corev1.ContainerState) {
 			State: state,
 		},
 	}
+	pod.Status.HostIP = pod.GetObjectMeta().GetName() + "-node"
 	err := k8sClient.Status().Update(ctx, pod)
 	Expect(err).NotTo(HaveOccurred())
 }
