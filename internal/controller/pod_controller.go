@@ -18,7 +18,6 @@ package controller
 
 import (
 	"context"
-	"time"
 
 	"github.com/cybozu-go/cat-gate/internal/constants"
 	corev1 "k8s.io/api/core/v1"
@@ -50,20 +49,17 @@ const levelWarning = 1
 
 // Reconcile is part of the main kubernetes reconciliation loop which aims to
 // move the current state of the cluster closer to the desired state.
-// TODO(user): Modify the Reconcile function to compare the state specified by
-// the Pod object against the actual cluster state, and then
-// perform operations to make the cluster state reflect the state specified by
-// the user.
-//
-// For more details, check Reconcile and its Result here:
-// - https://pkg.go.dev/sigs.k8s.io/controller-runtime@v0.15.0/pkg/reconcile
 func (r *PodReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	logger := log.FromContext(ctx)
 
 	reqPod := &corev1.Pod{}
 	err := r.Get(ctx, req.NamespacedName, reqPod)
 	if err != nil {
-		return ctrl.Result{}, err
+		return ctrl.Result{}, client.IgnoreNotFound(err)
+	}
+
+	if reqPod.DeletionTimestamp != nil {
+		return ctrl.Result{}, nil
 	}
 
 	annotations := reqPod.Annotations
@@ -79,7 +75,7 @@ func (r *PodReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.R
 	reqImagesHash := annotations[constants.CatGateImagesHashAnnotation]
 
 	pods := &corev1.PodList{}
-	err = r.List(ctx, pods, client.MatchingFields{constants.ImageHashAnnotationField: reqImagesHash}, client.InNamespace(req.Namespace))
+	err = r.List(ctx, pods, client.MatchingFields{constants.ImageHashAnnotationField: reqImagesHash})
 	if err != nil {
 		logger.Error(err, "failed to list pods")
 		return ctrl.Result{}, err
@@ -129,21 +125,20 @@ func (r *PodReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.R
 
 	return ctrl.Result{
 		Requeue:      true,
-		RequeueAfter: 3 * time.Second,
 	}, nil
 }
 
 func (r *PodReconciler) removeSchedulingGate(ctx context.Context, pod *corev1.Pod) error {
-	var filterdGates []corev1.PodSchedulingGate
+	var filteredGates []corev1.PodSchedulingGate
 	existsGate := false
 	for _, gate := range pod.Spec.SchedulingGates {
 		if gate.Name == constants.PodSchedulingGateName {
 			existsGate = true
 			continue
 		}
-		filterdGates = append(filterdGates, gate)
+		filteredGates = append(filteredGates, gate)
 	}
-	pod.Spec.SchedulingGates = filterdGates
+	pod.Spec.SchedulingGates = filteredGates
 	if existsGate {
 		logger := log.FromContext(ctx)
 		err := r.Update(ctx, pod)

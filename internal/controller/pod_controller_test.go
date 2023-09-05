@@ -16,7 +16,7 @@ var _ = Describe("CatGate controller", func() {
 
 	ctx := context.Background()
 
-	It("should schedule 1 pod when single pod is created", func() {
+	It("should schedule a pod if it is created solely", func() {
 		testName := "single-pod"
 		namespace := &corev1.Namespace{
 			ObjectMeta: metav1.ObjectMeta{
@@ -63,7 +63,7 @@ var _ = Describe("CatGate controller", func() {
 		}).Should(Succeed())
 	})
 
-	It("should schedule x pods when 2 pods are already scheduled", func() {
+	It("should schedule pods exponentially", func() {
 		testName := "multiple-pods-with-running-pods"
 		namespace := &corev1.Namespace{
 			ObjectMeta: metav1.ObjectMeta{
@@ -89,7 +89,7 @@ var _ = Describe("CatGate controller", func() {
 			}
 			g.Expect(numSchedulable).To(Equal(1))
 		}).Should(Succeed())
-		updateStatusForPodWithSchedulingGate(testName)
+		scheduleAndStartPods(testName)
 
 		Eventually(func(g Gomega) {
 			err := k8sClient.List(ctx, pods, &client.ListOptions{Namespace: testName})
@@ -102,7 +102,7 @@ var _ = Describe("CatGate controller", func() {
 			}
 			g.Expect(numSchedulable).To(Equal(3))
 		}).Should(Succeed())
-		updateStatusForPodWithSchedulingGate(testName)
+		scheduleAndStartPods(testName)
 
 		Eventually(func(g Gomega) {
 			err := k8sClient.List(ctx, pods, &client.ListOptions{Namespace: testName})
@@ -117,7 +117,7 @@ var _ = Describe("CatGate controller", func() {
 		}).Should(Succeed())
 	})
 
-	It("should remove scheduling gate when annotation force-removed", func() {
+	It("should remove scheduling gate when annotation is removed intentionally", func() {
 		testName := "remove-scheduling-gate-fail-safe"
 		namespace := &corev1.Namespace{
 			ObjectMeta: metav1.ObjectMeta{
@@ -148,7 +148,7 @@ var _ = Describe("CatGate controller", func() {
 		}).Should(Succeed())
 	})
 
-	It("should limit number of schedulable pods based on status", func() {
+	It("should limit the number of schedulable pods based on status", func() {
 		testName := "multiple-pods-with-some-running-pods"
 		namespace := &corev1.Namespace{
 			ObjectMeta: metav1.ObjectMeta{
@@ -174,7 +174,7 @@ var _ = Describe("CatGate controller", func() {
 			}
 			g.Expect(numSchedulable).To(Equal(1))
 		}).Should(Succeed())
-		updateStatusForPodWithSchedulingGate(testName)
+		scheduleAndStartPods(testName)
 
 		Eventually(func(g Gomega) {
 			err := k8sClient.List(ctx, pods, &client.ListOptions{Namespace: testName})
@@ -187,7 +187,7 @@ var _ = Describe("CatGate controller", func() {
 			}
 			g.Expect(numSchedulable).To(Equal(3))
 		}).Should(Succeed())
-		updateStatusForOnePodWithSchedulingGate(testName)
+		scheduleAndStartOnePod(testName)
 
 		Eventually(func(g Gomega) {
 			err := k8sClient.List(ctx, pods, &client.ListOptions{Namespace: testName})
@@ -201,6 +201,8 @@ var _ = Describe("CatGate controller", func() {
 			g.Expect(numSchedulable).To(Equal(6))
 		}).Should(Succeed())
 	})
+
+	// TODO: add a test where one node has multiple running pods and only one additional pod would be scheduled.
 })
 
 func createNewPod(index int, testName string) *corev1.Pod {
@@ -229,7 +231,8 @@ func createNewPod(index int, testName string) *corev1.Pod {
 	Expect(err).NotTo(HaveOccurred())
 	return newPod
 }
-func updateStatusForPodWithSchedulingGate(namespace string) {
+
+func scheduleAndStartPods(namespace string) {
 	pods := &corev1.PodList{}
 	err := k8sClient.List(ctx, pods, client.InNamespace(namespace))
 	Expect(err).NotTo(HaveOccurred())
@@ -241,7 +244,7 @@ func updateStatusForPodWithSchedulingGate(namespace string) {
 	}
 }
 
-func updateStatusForOnePodWithSchedulingGate(namespace string) {
+func scheduleAndStartOnePod(namespace string) {
 	pods := &corev1.PodList{}
 	err := k8sClient.List(ctx, pods, client.InNamespace(namespace))
 	Expect(err).NotTo(HaveOccurred())

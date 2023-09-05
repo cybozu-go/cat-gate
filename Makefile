@@ -3,6 +3,7 @@
 IMG ?= cat-gate:latest
 # ENVTEST_K8S_VERSION refers to the version of kubebuilder assets to be downloaded by envtest binary.
 ENVTEST_K8S_VERSION = 1.27.1
+CERT_MANAGER_VERSION := 1.11.2
 
 # Get the currently used golang install path (in GOPATH/bin, unless GOBIN is set)
 ifeq (,$(shell go env GOBIN))
@@ -133,7 +134,7 @@ undeploy: ## Undeploy controller from the K8s cluster specified in ~/.kube/confi
 .PHONY: start
 start:
 	ctlptl apply -f ./cluster.yaml
-	kubectl apply -f https://github.com/jetstack/cert-manager/releases/latest/download/cert-manager.yaml
+	kubectl apply -f https://github.com/jetstack/cert-manager/releases/v$(CERT_MANAGER_VERSION)/download/cert-manager.yaml
 	kubectl -n cert-manager wait --for=condition=available --timeout=180s --all deployments
 
 .PHONY: stop
