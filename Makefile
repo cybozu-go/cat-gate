@@ -1,6 +1,6 @@
 
 # Image URL to use all building/pushing image targets
-IMG ?= cat-gate:latest
+IMG ?= cat-gate:dev
 # ENVTEST_K8S_VERSION refers to the version of kubebuilder assets to be downloaded by envtest binary.
 ENVTEST_K8S_VERSION = 1.27.1
 CERT_MANAGER_VERSION := 1.11.2

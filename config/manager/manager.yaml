@@ -70,7 +70,7 @@ spec:
         - /manager
         args:
         - --leader-elect
-        image: cat-gate:latest
+        image: cat-gate:dev
         name: manager
         securityContext:
           allowPrivilegeEscalation: false
