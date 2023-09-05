@@ -90,11 +90,11 @@ var _ = BeforeSuite(func() {
 	// start webhook server using Manager
 	webhookInstallOptions := &testEnv.WebhookInstallOptions
 	mgr, err := ctrl.NewManager(cfg, ctrl.Options{
-		Scheme:             scheme,
+		Scheme: scheme,
 		WebhookServer: webhook.NewServer(webhook.Options{
-			Host:               webhookInstallOptions.LocalServingHost,
-			Port:               webhookInstallOptions.LocalServingPort,
-			CertDir:            webhookInstallOptions.LocalServingCertDir,
+			Host:    webhookInstallOptions.LocalServingHost,
+			Port:    webhookInstallOptions.LocalServingPort,
+			CertDir: webhookInstallOptions.LocalServingCertDir,
 		}),
 		LeaderElection:     false,
 		MetricsBindAddress: "0",

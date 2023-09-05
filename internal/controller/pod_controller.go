@@ -124,7 +124,7 @@ func (r *PodReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.R
 	}
 
 	return ctrl.Result{
-		Requeue:      true,
+		Requeue: true,
 	}, nil
 }
 
