@@ -116,7 +116,7 @@ func (r *PodReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.R
 	if capacity < minimumCapacity {
 		capacity = minimumCapacity
 	}
-	logger.V(levelDebug).Info("schedule capacity", "capacity", capacity, "(nodeSet)", (nodeSet))
+	logger.V(levelDebug).Info("schedule capacity", "capacity", capacity, "len(nodeSet)", len(nodeSet))
 
 	numImagePullingPods := numSchedulablePods - numImagePulledPods
 	logger.V(levelDebug).Info("scheduling progress", "numSchedulablePods", numSchedulablePods, "numImagePulledPods", numImagePulledPods, "numImagePullingPods", numImagePullingPods)
