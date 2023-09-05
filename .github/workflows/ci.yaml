@@ -13,4 +13,21 @@ jobs:
       - uses: actions/setup-go@v4
         with:
           go-version-file: go.mod
+      - run: make check-generate
       - run: make test
+  e2e:
+    name: End-to-End Tests
+    runs-on: ubuntu-22.04
+    # TODO: add test matrix for kubernetes version
+    steps:
+    - uses: actions/checkout@v3
+    - uses: actions/setup-go@v4
+      with:
+        go-version-file: go.mod
+        cache: true
+    - run: make setup
+      working-directory: e2e
+    - run: make start
+      working-directory: e2e
+    - run: make test
+      working-directory: e2e

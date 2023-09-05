@@ -1,0 +1,23 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ubuntu-deployment
+  labels:
+    component: ubuntu
+spec:
+  replicas: 8
+  selector:
+    matchLabels:
+      component: ubuntu
+  template:
+    metadata:
+      labels:
+        component: ubuntu
+    spec:
+      securityContext:
+        runAsUser: 1000
+        runAsGroup: 1000
+      containers:
+      - name: ubuntu
+        image: quay.io/cybozu/ubuntu:22.04
+        command: ["/usr/local/bin/pause"]
