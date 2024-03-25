@@ -1,5 +1,5 @@
 # Build the manager binary
-FROM ghcr.io/cybozu/golang:1.20-jammy as builder
+FROM ghcr.io/cybozu/golang:1.22-jammy as builder
 ARG TARGETOS
 ARG TARGETARCH
 

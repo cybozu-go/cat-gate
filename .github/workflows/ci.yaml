@@ -9,7 +9,7 @@ jobs:
     name: Small tests
     runs-on: ubuntu-22.04
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - uses: actions/setup-go@v4
         with:
           go-version-file: go.mod
@@ -20,7 +20,7 @@ jobs:
     runs-on: ubuntu-22.04
     # TODO: add test matrix for kubernetes version
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
     - uses: actions/setup-go@v4
       with:
         go-version-file: go.mod
@@ -36,7 +36,7 @@ jobs:
     runs-on: ubuntu-22.04
     steps:
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           fetch-depth: 0
       - name: Setup golang
@@ -47,8 +47,8 @@ jobs:
         run: |
           echo "GORELEASER_CURRENT_TAG=$(git describe --tags --abbrev=0 --match "v*" || echo v0.0.0)" >> $GITHUB_ENV
       - name: GoReleaser
-        uses: 'goreleaser/goreleaser-action@336e29918d653399e599bfca99fadc1d7ffbc9f7'
+        uses: 'goreleaser/goreleaser-action@v5'
         with:
           distribution: goreleaser
-          version: v1.18.2
+          version: v1.24.0
           args: --snapshot --skip-publish --rm-dist
