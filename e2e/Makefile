@@ -1,6 +1,6 @@
 # NOTE: kind version is specified at aqua.yaml
-E2ETEST_K8S_VERSION  := 1.27.1
-CERT_MANAGER_VERSION := 1.11.2
+E2ETEST_K8S_VERSION  := 1.29.2
+CERT_MANAGER_VERSION := 1.14.4
 
 PROJECT_DIR := $(CURDIR)/../
 BIN_DIR := $(PROJECT_DIR)/bin
@@ -42,7 +42,7 @@ start:
 .PHONY: test
 test:
 	env RUN_E2E=1 \
-		go test -v -race . -ginkgo.progress -ginkgo.v -ginkgo.fail-fast
+		go test -v -race . -ginkgo.v -ginkgo.fail-fast
 
 .PHONY: logs
 logs:

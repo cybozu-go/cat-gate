@@ -5,10 +5,14 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased]
 
+### Changed
+
+- Update dependencies [#13](https://github.com/cybozu-go/cat-gate/pull/13)
+
 ## [0.1.1]
 
 ### Changed
-- Label container image using the repository name (#10)
+- Label container image using the repository name [#10](https://github.com/cybozu-go/cat-gate/pull/10)
 
 ## [0.1.0]
 
