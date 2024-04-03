@@ -3,6 +3,8 @@ package controller
 import (
 	"context"
 	"fmt"
+	"regexp"
+	"strings"
 
 	"github.com/cybozu-go/cat-gate/internal/constants"
 	. "github.com/onsi/ginkgo/v2"
@@ -74,9 +76,11 @@ var _ = Describe("CatGate controller", func() {
 		err := k8sClient.Create(ctx, namespace)
 		Expect(err).NotTo(HaveOccurred())
 
-		for i := 0; i < 8; i++ {
+		for i := 0; i < 10; i++ {
 			createNewPod(i, testName)
+			createNewNode(i, testName)
 		}
+
 		pods := &corev1.PodList{}
 
 		Eventually(func(g Gomega) {
@@ -88,6 +92,7 @@ var _ = Describe("CatGate controller", func() {
 					numSchedulable += 1
 				}
 			}
+			// no pod is already running, so 1 pods should be scheduled
 			g.Expect(numSchedulable).To(Equal(1))
 		}).Should(Succeed())
 		scheduleAndStartPods(testName)
@@ -101,6 +106,7 @@ var _ = Describe("CatGate controller", func() {
 					numSchedulable += 1
 				}
 			}
+			// 1 pod is already running, so 3(1 + 1*2) pods should be scheduled
 			g.Expect(numSchedulable).To(Equal(3))
 		}).Should(Succeed())
 		scheduleAndStartPods(testName)
@@ -114,7 +120,8 @@ var _ = Describe("CatGate controller", func() {
 					numSchedulable += 1
 				}
 			}
-			g.Expect(numSchedulable).To(Equal(8))
+			// 3 pods are already running, so 9 (3 + 3*2) pods should be scheduled
+			g.Expect(numSchedulable).To(Equal(9))
 		}).Should(Succeed())
 	})
 
@@ -159,8 +166,9 @@ var _ = Describe("CatGate controller", func() {
 		err := k8sClient.Create(ctx, namespace)
 		Expect(err).NotTo(HaveOccurred())
 
-		for i := 0; i < 8; i++ {
+		for i := 0; i < 10; i++ {
 			createNewPod(i, testName)
+			createNewNode(i, testName)
 		}
 		pods := &corev1.PodList{}
 
@@ -173,6 +181,7 @@ var _ = Describe("CatGate controller", func() {
 					numSchedulable += 1
 				}
 			}
+			// no pod is already running, so 1 pods should be scheduled
 			g.Expect(numSchedulable).To(Equal(1))
 		}).Should(Succeed())
 		scheduleAndStartPods(testName)
@@ -186,6 +195,7 @@ var _ = Describe("CatGate controller", func() {
 					numSchedulable += 1
 				}
 			}
+			// 1 pod is already running, so 3(1 + 1*2) pods should be scheduled
 			g.Expect(numSchedulable).To(Equal(3))
 		}).Should(Succeed())
 		scheduleAndStartOnePod(testName)
@@ -199,11 +209,121 @@ var _ = Describe("CatGate controller", func() {
 					numSchedulable += 1
 				}
 			}
+			// 2 pods are already running, so 6 (2 + 2*2) pods should be scheduled
 			g.Expect(numSchedulable).To(Equal(6))
 		}).Should(Succeed())
 	})
 
-	// TODO: add a test where one node has multiple running pods and only one additional pod would be scheduled.
+	It("should allow scheduling of additional pods when multiple pods are running on a single node", func() {
+		testName := "multiple-pods-running-on-single-node"
+		namespace := &corev1.Namespace{
+			ObjectMeta: metav1.ObjectMeta{
+				Name: testName,
+			},
+		}
+		err := k8sClient.Create(ctx, namespace)
+		Expect(err).NotTo(HaveOccurred())
+
+		for i := 0; i < 3; i++ {
+			createNewPod(i, testName)
+		}
+		for i := 0; i < 1; i++ {
+			createNewNode(i, testName)
+		}
+
+		nodes := &corev1.NodeList{}
+		err = k8sClient.List(ctx, nodes, &client.ListOptions{Namespace: testName})
+		Expect(err).NotTo(HaveOccurred())
+
+		pods := &corev1.PodList{}
+		Eventually(func(g Gomega) {
+			err := k8sClient.List(ctx, pods, &client.ListOptions{Namespace: testName})
+			g.Expect(err).NotTo(HaveOccurred())
+			numSchedulable := 0
+			for _, pod := range pods.Items {
+				if !existsSchedulingGate(&pod) {
+					numSchedulable += 1
+				}
+			}
+			// no pod is already running, so 1 pods should be scheduled
+			g.Expect(numSchedulable).To(Equal(1))
+		}).Should(Succeed())
+		scheduleSpecificNodeAndStartOnePod(testName, nodes.Items[0].Name)
+
+		Eventually(func(g Gomega) {
+			err := k8sClient.List(ctx, pods, &client.ListOptions{Namespace: testName})
+			g.Expect(err).NotTo(HaveOccurred())
+			numSchedulable := 0
+			for _, pod := range pods.Items {
+				if !existsSchedulingGate(&pod) {
+					numSchedulable += 1
+				}
+			}
+			// 1 pod is already running, so 3(1 + 1*2) pods should be scheduled
+			g.Expect(numSchedulable).To(Equal(3))
+		}).Should(Succeed())
+		scheduleSpecificNodeAndStartOnePod(testName, nodes.Items[0].Name)
+
+		Eventually(func(g Gomega) {
+			err := k8sClient.List(ctx, pods, &client.ListOptions{Namespace: testName})
+			g.Expect(err).NotTo(HaveOccurred())
+			numSchedulable := 0
+			for _, pod := range pods.Items {
+				if !existsSchedulingGate(&pod) {
+					numSchedulable += 1
+				}
+			}
+			// 2 pods are already running, so 3 pods should be scheduled
+			g.Expect(numSchedulable).To(Equal(3))
+		}).Should(Succeed())
+
+	})
+
+	It("Should the schedule not increase if the pod is not Running", func() {
+		testName := "crash-pod"
+		namespace := &corev1.Namespace{
+			ObjectMeta: metav1.ObjectMeta{
+				Name: testName,
+			},
+		}
+		err := k8sClient.Create(ctx, namespace)
+		Expect(err).NotTo(HaveOccurred())
+
+		for i := 0; i < 3; i++ {
+			createNewPod(i, testName)
+		}
+		for i := 0; i < 3; i++ {
+			createNewNode(i, testName)
+		}
+
+		pods := &corev1.PodList{}
+		Eventually(func(g Gomega) {
+			err := k8sClient.List(ctx, pods, &client.ListOptions{Namespace: testName})
+			g.Expect(err).NotTo(HaveOccurred())
+			numSchedulable := 0
+			for _, pod := range pods.Items {
+				if !existsSchedulingGate(&pod) {
+					numSchedulable += 1
+				}
+			}
+			// no pod is already running, so 1 pods should be scheduled
+			g.Expect(numSchedulable).To(Equal(1))
+		}).Should(Succeed())
+		scheduleAndStartOneUnhealthyPod(testName)
+
+		Eventually(func(g Gomega) {
+			err := k8sClient.List(ctx, pods, &client.ListOptions{Namespace: testName})
+			g.Expect(err).NotTo(HaveOccurred())
+			numSchedulable := 0
+			for _, pod := range pods.Items {
+				if !existsSchedulingGate(&pod) {
+					numSchedulable += 1
+				}
+			}
+			// 1 pod is already scheduled, but it is not running, so 1 pod should be scheduled
+			g.Expect(numSchedulable).To(Equal(1))
+		}).Should(Succeed())
+	})
 })
 
 func createNewPod(index int, testName string) *corev1.Pod {
@@ -232,6 +352,16 @@ func createNewPod(index int, testName string) *corev1.Pod {
 	return newPod
 }
 
+func createNewNode(index int, testName string) error {
+	newNode := &corev1.Node{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: fmt.Sprintf("%s-node-%d", testName, index),
+		},
+		Status: corev1.NodeStatus{},
+	}
+	return k8sClient.Create(ctx, newNode)
+}
+
 func scheduleAndStartPods(namespace string) {
 	pods := &corev1.PodList{}
 	err := k8sClient.List(ctx, pods, client.InNamespace(namespace))
@@ -240,6 +370,11 @@ func scheduleAndStartPods(namespace string) {
 	for _, pod := range pods.Items {
 		if !existsSchedulingGate(&pod) {
 			updatePodStatus(&pod, corev1.ContainerState{Running: &corev1.ContainerStateRunning{}})
+
+			node := &corev1.Node{}
+			err = k8sClient.Get(ctx, client.ObjectKey{Name: pod.Status.HostIP}, node)
+			Expect(err).NotTo(HaveOccurred())
+			updateNodeImageStatus(node, pod.Spec.Containers)
 		}
 	}
 }
@@ -252,6 +387,46 @@ func scheduleAndStartOnePod(namespace string) {
 	for _, pod := range pods.Items {
 		if !existsSchedulingGate(&pod) && len(pod.Status.ContainerStatuses) == 0 {
 			updatePodStatus(&pod, corev1.ContainerState{Running: &corev1.ContainerStateRunning{}})
+
+			node := &corev1.Node{}
+			err = k8sClient.Get(ctx, client.ObjectKey{Name: pod.Status.HostIP}, node)
+			Expect(err).NotTo(HaveOccurred())
+			updateNodeImageStatus(node, pod.Spec.Containers)
+			break
+		}
+	}
+}
+
+func scheduleSpecificNodeAndStartOnePod(namespace, nodeName string) {
+	pods := &corev1.PodList{}
+	err := k8sClient.List(ctx, pods, client.InNamespace(namespace))
+	Expect(err).NotTo(HaveOccurred())
+
+	for _, pod := range pods.Items {
+		if !existsSchedulingGate(&pod) && len(pod.Status.ContainerStatuses) == 0 {
+			updatePodStatusWithHostIP(&pod, corev1.ContainerState{Running: &corev1.ContainerStateRunning{}}, nodeName)
+			node := &corev1.Node{}
+			err = k8sClient.Get(ctx, client.ObjectKey{Name: pod.Status.HostIP}, node)
+			Expect(err).NotTo(HaveOccurred())
+			updateNodeImageStatus(node, pod.Spec.Containers)
+			break
+		}
+	}
+}
+
+func scheduleAndStartOneUnhealthyPod(namespace string) {
+	pods := &corev1.PodList{}
+	err := k8sClient.List(ctx, pods, client.InNamespace(namespace))
+	Expect(err).NotTo(HaveOccurred())
+
+	for _, pod := range pods.Items {
+		if !existsSchedulingGate(&pod) && len(pod.Status.ContainerStatuses) == 0 {
+			updatePodStatus(&pod, corev1.ContainerState{Waiting: &corev1.ContainerStateWaiting{Reason: "RunContainerError"}})
+
+			node := &corev1.Node{}
+			err = k8sClient.Get(ctx, client.ObjectKey{Name: pod.Status.HostIP}, node)
+			Expect(err).NotTo(HaveOccurred())
+			updateNodeImageStatus(node, pod.Spec.Containers)
 			break
 		}
 	}
@@ -263,7 +438,33 @@ func updatePodStatus(pod *corev1.Pod, state corev1.ContainerState) {
 			State: state,
 		},
 	}
-	pod.Status.HostIP = pod.GetObjectMeta().GetName() + "-node"
+	podName := pod.GetObjectMeta().GetName()
+	regex, err := regexp.Compile(`pod-\d+$`)
+	Expect(err).NotTo(HaveOccurred())
+	idx := regex.FindStringIndex(podName)
+	nodeName := podName[:idx[0]] + strings.Replace(podName[idx[0]:], "pod", "node", 1)
+	pod.Status.HostIP = nodeName
+	err = k8sClient.Status().Update(ctx, pod)
+	Expect(err).NotTo(HaveOccurred())
+}
+
+func updatePodStatusWithHostIP(pod *corev1.Pod, state corev1.ContainerState, nodeName string) {
+	pod.Status.ContainerStatuses = []corev1.ContainerStatus{
+		{
+			State: state,
+		},
+	}
+	pod.Status.HostIP = nodeName
 	err := k8sClient.Status().Update(ctx, pod)
+	Expect(err).NotTo(HaveOccurred())
+}
+
+func updateNodeImageStatus(node *corev1.Node, containers []corev1.Container) {
+	for _, container := range containers {
+		node.Status.Images = append(node.Status.Images, corev1.ContainerImage{
+			Names: []string{container.Image},
+		})
+	}
+	err := k8sClient.Status().Update(ctx, node)
 	Expect(err).NotTo(HaveOccurred())
 }
