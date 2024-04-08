@@ -29,7 +29,7 @@ var _ = Describe("CatGate controller", func() {
 		err := k8sClient.Create(ctx, namespace)
 		Expect(err).NotTo(HaveOccurred())
 
-		createNewPod(0, testName)
+		createNewPod(testName, 0)
 
 		pod := &corev1.Pod{}
 		Eventually(func(g Gomega) {
@@ -50,7 +50,7 @@ var _ = Describe("CatGate controller", func() {
 		Expect(err).NotTo(HaveOccurred())
 
 		for i := 0; i < 8; i++ {
-			createNewPod(i, testName)
+			createNewPod(testName, i)
 		}
 		pods := &corev1.PodList{}
 		Eventually(func(g Gomega) {
@@ -77,8 +77,8 @@ var _ = Describe("CatGate controller", func() {
 		Expect(err).NotTo(HaveOccurred())
 
 		for i := 0; i < 10; i++ {
-			createNewPod(i, testName)
-			createNewNode(i, testName)
+			createNewPod(testName, i)
+			createNewNode(testName, i)
 		}
 
 		pods := &corev1.PodList{}
@@ -135,7 +135,7 @@ var _ = Describe("CatGate controller", func() {
 		err := k8sClient.Create(ctx, namespace)
 		Expect(err).NotTo(HaveOccurred())
 
-		createNewPod(0, testName)
+		createNewPod(testName, 0)
 
 		pod := &corev1.Pod{}
 		Eventually(func(g Gomega) {
@@ -144,7 +144,7 @@ var _ = Describe("CatGate controller", func() {
 			g.Expect(pod.Spec.SchedulingGates).NotTo(ConsistOf(corev1.PodSchedulingGate{Name: constants.PodSchedulingGateName}))
 		}).Should(Succeed())
 
-		pod = createNewPod(1, testName)
+		pod = createNewPod(testName, 1)
 		delete(pod.Annotations, constants.CatGateImagesHashAnnotation)
 		err = k8sClient.Update(ctx, pod)
 		Expect(err).NotTo(HaveOccurred())
@@ -167,8 +167,8 @@ var _ = Describe("CatGate controller", func() {
 		Expect(err).NotTo(HaveOccurred())
 
 		for i := 0; i < 10; i++ {
-			createNewPod(i, testName)
-			createNewNode(i, testName)
+			createNewPod(testName, i)
+			createNewNode(testName, i)
 		}
 		pods := &corev1.PodList{}
 
@@ -225,10 +225,10 @@ var _ = Describe("CatGate controller", func() {
 		Expect(err).NotTo(HaveOccurred())
 
 		for i := 0; i < 3; i++ {
-			createNewPod(i, testName)
+			createNewPod(testName, i)
 		}
 		for i := 0; i < 1; i++ {
-			createNewNode(i, testName)
+			createNewNode(testName, i)
 		}
 
 		nodes := &corev1.NodeList{}
@@ -273,7 +273,7 @@ var _ = Describe("CatGate controller", func() {
 					numSchedulable += 1
 				}
 			}
-			// 2 pods are already running, so 3 pods should be scheduled
+			// 2 pods are already running on a same node, so 3 pods should be scheduled
 			g.Expect(numSchedulable).To(Equal(3))
 		}).Should(Succeed())
 
@@ -290,10 +290,10 @@ var _ = Describe("CatGate controller", func() {
 		Expect(err).NotTo(HaveOccurred())
 
 		for i := 0; i < 3; i++ {
-			createNewPod(i, testName)
+			createNewPod(testName, i)
 		}
 		for i := 0; i < 3; i++ {
-			createNewNode(i, testName)
+			createNewNode(testName, i)
 		}
 
 		pods := &corev1.PodList{}
@@ -326,7 +326,7 @@ var _ = Describe("CatGate controller", func() {
 	})
 })
 
-func createNewPod(index int, testName string) *corev1.Pod {
+func createNewPod(testName string, index int) *corev1.Pod {
 	newPod := &corev1.Pod{
 		ObjectMeta: metav1.ObjectMeta{
 			Namespace: testName,
@@ -352,14 +352,15 @@ func createNewPod(index int, testName string) *corev1.Pod {
 	return newPod
 }
 
-func createNewNode(index int, testName string) error {
+func createNewNode(testName string, index int) {
 	newNode := &corev1.Node{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: fmt.Sprintf("%s-node-%d", testName, index),
 		},
 		Status: corev1.NodeStatus{},
 	}
-	return k8sClient.Create(ctx, newNode)
+	err := k8sClient.Create(ctx, newNode)
+	Expect(err).NotTo(HaveOccurred())
 }
 
 func scheduleAndStartPods(namespace string) {
