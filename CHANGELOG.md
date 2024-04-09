@@ -5,9 +5,14 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased]
 
+## [0.1.2]
+
 ### Changed
 
+- Migrate to ghcr.io [#12](https://github.com/cybozu-go/cat-gate/pull/12)
 - Update dependencies [#13](https://github.com/cybozu-go/cat-gate/pull/13)
+- Add some test cases [#14](https://github.com/cybozu-go/cat-gate/pull/14)
+- Rename webhooks [#15](https://github.com/cybozu-go/cat-gate/pull/15)
 
 ## [0.1.1]
 
@@ -18,6 +23,7 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 
 This is the first public release.
 
-[Unreleased]: https://github.com/cybozu-go/cat-gate/compare/v0.1.1...HEAD
+[Unreleased]: https://github.com/cybozu-go/cat-gate/compare/v0.1.2...HEAD
+[0.1.2]: https://github.com/cybozu-go/cat-gate/compare/v0.1.1...v0.1.2
 [0.1.1]: https://github.com/cybozu-go/cat-gate/compare/v0.1.0...v0.1.1
 [0.1.0]: https://github.com/cybozu-go/cat-gate/compare/4b825dc642cb6eb9a060e54bf8d69288fbee4904...v0.1.0
