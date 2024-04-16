@@ -73,6 +73,13 @@ spec:
           capabilities:
             drop:
               - "ALL"
+        ports:
+          - name: metrics
+            containerPort: 8080
+          - name: health
+            containerPort: 8081
+          - name: webhook
+            containerPort: 9443
         livenessProbe:
           httpGet:
             path: /healthz
