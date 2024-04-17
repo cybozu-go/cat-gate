@@ -5,6 +5,13 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased]
 
+## [0.1.3]
+
+### Changed
+
+- Revised the value of label [#17](https://github.com/cybozu-go/cat-gate/pull/17)
+- Set a name for the port [#18](https://github.com/cybozu-go/cat-gate/pull/18)
+
 ## [0.1.2]
 
 ### Changed
@@ -23,7 +30,8 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 
 This is the first public release.
 
-[Unreleased]: https://github.com/cybozu-go/cat-gate/compare/v0.1.2...HEAD
+[Unreleased]: https://github.com/cybozu-go/cat-gate/compare/v0.1.3...HEAD
+[0.1.3]: https://github.com/cybozu-go/cat-gate/compare/v0.1.2...v0.1.3
 [0.1.2]: https://github.com/cybozu-go/cat-gate/compare/v0.1.1...v0.1.2
 [0.1.1]: https://github.com/cybozu-go/cat-gate/compare/v0.1.0...v0.1.1
 [0.1.0]: https://github.com/cybozu-go/cat-gate/compare/4b825dc642cb6eb9a060e54bf8d69288fbee4904...v0.1.0
