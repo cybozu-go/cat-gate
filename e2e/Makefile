@@ -27,7 +27,7 @@ setup:
 	mkdir -p $(BIN_DIR)
 	$(CURL) -o $(BIN_DIR)/kubectl https://storage.googleapis.com/kubernetes-release/release/v$(E2ETEST_K8S_VERSION)/bin/linux/amd64/kubectl && chmod a+x $(BIN_DIR)/kubectl
 	# TODO: specify kind version
-    GOBIN=$(BIN_DIR) go install sigs.k8s.io/kind@latest
+	GOBIN=$(BIN_DIR) go install sigs.k8s.io/kind@latest
 
 .PHONY: start
 start:

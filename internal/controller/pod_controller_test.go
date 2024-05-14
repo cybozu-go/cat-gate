@@ -92,7 +92,7 @@ var _ = Describe("CatGate controller", func() {
 					numSchedulable += 1
 				}
 			}
-			// no pod is already running, so 1 pods should be scheduled
+			// no nodes with images exist, so 1 pods should be scheduled
 			g.Expect(numSchedulable).To(Equal(1))
 		}).Should(Succeed())
 		scheduleAndStartPods(testName)
@@ -106,7 +106,7 @@ var _ = Describe("CatGate controller", func() {
 					numSchedulable += 1
 				}
 			}
-			// 1 pod is already running, so 3(1 + 1*2) pods should be scheduled
+			// several images exist on 1 node, so 3(1 + 1*2) pods should be scheduled
 			g.Expect(numSchedulable).To(Equal(3))
 		}).Should(Succeed())
 		scheduleAndStartPods(testName)
@@ -120,7 +120,7 @@ var _ = Describe("CatGate controller", func() {
 					numSchedulable += 1
 				}
 			}
-			// 3 pods are already running, so 9 (3 + 3*2) pods should be scheduled
+			// several images exist on 3 node, so 9 (3 + 3*2) pods should be scheduled
 			g.Expect(numSchedulable).To(Equal(9))
 		}).Should(Succeed())
 	})
@@ -181,7 +181,7 @@ var _ = Describe("CatGate controller", func() {
 					numSchedulable += 1
 				}
 			}
-			// no pod is already running, so 1 pods should be scheduled
+			// no nodes with images exist, so 1 pods should be scheduled
 			g.Expect(numSchedulable).To(Equal(1))
 		}).Should(Succeed())
 		scheduleAndStartPods(testName)
@@ -195,7 +195,7 @@ var _ = Describe("CatGate controller", func() {
 					numSchedulable += 1
 				}
 			}
-			// 1 pod is already running, so 3(1 + 1*2) pods should be scheduled
+			// several images exist on 1 node, so 3(1 + 1*2) pods should be scheduled
 			g.Expect(numSchedulable).To(Equal(3))
 		}).Should(Succeed())
 		scheduleAndStartOnePod(testName)
@@ -209,7 +209,7 @@ var _ = Describe("CatGate controller", func() {
 					numSchedulable += 1
 				}
 			}
-			// 2 pods are already running, so 6 (2 + 2*2) pods should be scheduled
+			// several images exist on 2 node, so 6 (2 + 2*2) pods should be scheduled
 			g.Expect(numSchedulable).To(Equal(6))
 		}).Should(Succeed())
 	})
@@ -245,7 +245,7 @@ var _ = Describe("CatGate controller", func() {
 					numSchedulable += 1
 				}
 			}
-			// no pod is already running, so 1 pods should be scheduled
+			// no nodes with images exist, so 1 pods should be scheduled
 			g.Expect(numSchedulable).To(Equal(1))
 		}).Should(Succeed())
 		scheduleSpecificNodeAndStartOnePod(testName, nodes.Items[0].Name)
@@ -259,7 +259,7 @@ var _ = Describe("CatGate controller", func() {
 					numSchedulable += 1
 				}
 			}
-			// 1 pod is already running, so 3(1 + 1*2) pods should be scheduled
+			// several images exist on 1 node, so 3(1 + 1*2) pods should be scheduled
 			g.Expect(numSchedulable).To(Equal(3))
 		}).Should(Succeed())
 		scheduleSpecificNodeAndStartOnePod(testName, nodes.Items[0].Name)
@@ -273,14 +273,14 @@ var _ = Describe("CatGate controller", func() {
 					numSchedulable += 1
 				}
 			}
-			// 2 pods are already running on a same node, so 3 pods should be scheduled
+			// several images exist on 1 node, so 3(1 + 1*2) pods should be scheduled.
+			// as there is only 1 node, it is not possible to schedule more pods than capacity.
 			g.Expect(numSchedulable).To(Equal(3))
 		}).Should(Succeed())
-
 	})
 
 	It("Should the schedule not increase if the pod is not Running", func() {
-		testName := "crash-pod"
+		testName := "no-start-pod"
 		namespace := &corev1.Namespace{
 			ObjectMeta: metav1.ObjectMeta{
 				Name: testName,
@@ -291,8 +291,6 @@ var _ = Describe("CatGate controller", func() {
 
 		for i := 0; i < 3; i++ {
 			createNewPod(testName, i)
-		}
-		for i := 0; i < 3; i++ {
 			createNewNode(testName, i)
 		}
 
@@ -306,7 +304,7 @@ var _ = Describe("CatGate controller", func() {
 					numSchedulable += 1
 				}
 			}
-			// no pod is already running, so 1 pods should be scheduled
+			// no nodes with images exist, so 1 pods should be scheduled
 			g.Expect(numSchedulable).To(Equal(1))
 		}).Should(Succeed())
 		scheduleAndStartOneUnhealthyPod(testName)
@@ -320,8 +318,52 @@ var _ = Describe("CatGate controller", func() {
 					numSchedulable += 1
 				}
 			}
-			// 1 pod is already scheduled, but it is not running, so 1 pod should be scheduled
-			g.Expect(numSchedulable).To(Equal(1))
+			// 1 pod is already scheduled, but it is not running,
+			// so 2(capacity: 2, numImagePullingPods: 2) pod should be scheduled
+			g.Expect(numSchedulable).To(Equal(2))
+		}).Should(Succeed())
+	})
+
+	It("Should more Pods be scheduled if images are present in a node, not limited to the number of Pods.", func() {
+		testName := "already-images-in-node"
+		namespace := &corev1.Namespace{
+			ObjectMeta: metav1.ObjectMeta{
+				Name: testName,
+			},
+		}
+		err := k8sClient.Create(ctx, namespace)
+		Expect(err).NotTo(HaveOccurred())
+
+		for i := 0; i < 10; i++ {
+			createNewNode(testName, i)
+		}
+
+		nodes := &corev1.NodeList{}
+		err = k8sClient.List(ctx, nodes)
+		Expect(err).NotTo(HaveOccurred())
+		for _, node := range nodes.Items {
+			updateNodeImageStatus(&node, []corev1.Container{
+				{Image: fmt.Sprintf("%s.example.com/sample1-image:1.0.0", testName)},
+				{Image: fmt.Sprintf("%s.example.com/sample2-image:1.0.0", testName)},
+			})
+		}
+
+		for i := 0; i < 10; i++ {
+			createNewPod(testName, i)
+		}
+
+		pods := &corev1.PodList{}
+		Eventually(func(g Gomega) {
+			err := k8sClient.List(ctx, pods, &client.ListOptions{Namespace: testName})
+			g.Expect(err).NotTo(HaveOccurred())
+			numSchedulable := 0
+			for _, pod := range pods.Items {
+				if !existsSchedulingGate(&pod) {
+					numSchedulable += 1
+				}
+			}
+			// image is present in the node, so 10 pods should be scheduled
+			g.Expect(numSchedulable).To(Equal(10))
 		}).Should(Succeed())
 	})
 })
@@ -423,7 +465,6 @@ func scheduleAndStartOneUnhealthyPod(namespace string) {
 	for _, pod := range pods.Items {
 		if !existsSchedulingGate(&pod) && len(pod.Status.ContainerStatuses) == 0 {
 			updatePodStatus(&pod, corev1.ContainerState{Waiting: &corev1.ContainerStateWaiting{Reason: "RunContainerError"}})
-
 			node := &corev1.Node{}
 			err = k8sClient.Get(ctx, client.ObjectKey{Name: pod.Status.HostIP}, node)
 			Expect(err).NotTo(HaveOccurred())

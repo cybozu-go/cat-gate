@@ -18,6 +18,8 @@ package controller
 
 import (
 	"context"
+	"slices"
+	"sync"
 	"time"
 
 	"github.com/cybozu-go/cat-gate/internal/constants"
@@ -46,10 +48,13 @@ const levelWarning = 1
 const levelDebug = -1
 
 var requeueSeconds = 10
+var gateRemovalDelayMilliSecond = 10
+var GateRemovalHistories = sync.Map{}
 
 //+kubebuilder:rbac:groups=core,resources=pods,verbs=get;list;watch;update;patch
 //+kubebuilder:rbac:groups=core,resources=pods/status,verbs=get;update;patch
 //+kubebuilder:rbac:groups=core,resources=pods/finalizers,verbs=update
+//+kubebuilder:rbac:groups=core,resources=nodes,verbs=get;list;watch
 
 // Reconcile is part of the main kubernetes reconciliation loop which aims to
 // move the current state of the cluster closer to the desired state.
@@ -60,6 +65,10 @@ func (r *PodReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.R
 	err := r.Get(ctx, req.NamespacedName, reqPod)
 	if err != nil {
 		return ctrl.Result{}, client.IgnoreNotFound(err)
+	}
+
+	if !existsSchedulingGate(reqPod) {
+		return ctrl.Result{}, nil
 	}
 
 	if reqPod.DeletionTimestamp != nil {
@@ -78,14 +87,57 @@ func (r *PodReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.R
 	}
 	reqImagesHash := annotations[constants.CatGateImagesHashAnnotation]
 
+	// prevents removing the scheduling gate based on information before the cache is updated.
+	if value, ok := GateRemovalHistories.Load(reqImagesHash); ok {
+		lastGateRemovalTime := time.UnixMilli(value.(int64))
+		if time.Since(lastGateRemovalTime) < time.Millisecond*time.Duration(gateRemovalDelayMilliSecond) {
+			logger.V(levelDebug).Info("perform retry processing to avoid race conditions", "lastGateRemovalTime", lastGateRemovalTime)
+			return ctrl.Result{RequeueAfter: time.Millisecond * time.Duration(gateRemovalDelayMilliSecond)}, nil
+		}
+	}
+
+	var reqImageList []string
+	for _, container := range reqPod.Spec.Containers {
+		if container.Image == "" {
+			continue
+		}
+		reqImageList = append(reqImageList, container.Image)
+	}
+
+	nodes := &corev1.NodeList{}
+	err = r.List(ctx, nodes)
+	if err != nil {
+		logger.Error(err, "failed to list nodes")
+		return ctrl.Result{}, err
+	}
+
+	nodeImageSet := make(map[string][]string)
+	for _, node := range nodes.Items {
+		for _, image := range node.Status.Images {
+			nodeImageSet[node.Name] = append(nodeImageSet[node.Name], image.Names...)
+		}
+	}
+
+	nodeSet := make(map[string]struct{})
+	for nodeName, images := range nodeImageSet {
+		allImageExists := true
+		for _, reqImage := range reqImageList {
+			if !slices.Contains(images, reqImage) {
+				allImageExists = false
+				break
+			}
+		}
+		if allImageExists {
+			nodeSet[nodeName] = struct{}{}
+		}
+	}
+
 	pods := &corev1.PodList{}
 	err = r.List(ctx, pods, client.MatchingFields{constants.ImageHashAnnotationField: reqImagesHash})
 	if err != nil {
 		logger.Error(err, "failed to list pods")
 		return ctrl.Result{}, err
 	}
-
-	nodeSet := make(map[string]struct{})
 
 	numSchedulablePods := 0
 	numImagePulledPods := 0
@@ -106,7 +158,6 @@ func (r *PodReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.R
 		}
 
 		if allStarted && len(pod.Spec.Containers) == len(statuses) {
-			nodeSet[pod.Status.HostIP] = struct{}{}
 			numImagePulledPods += 1
 		}
 	}
@@ -127,6 +178,9 @@ func (r *PodReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.R
 			logger.Error(err, "failed to remove scheduling gate")
 			return ctrl.Result{}, err
 		}
+		now := time.Now().UnixMilli()
+		GateRemovalHistories.Store(reqImagesHash, now)
+		return ctrl.Result{}, nil
 	}
 
 	return ctrl.Result{
