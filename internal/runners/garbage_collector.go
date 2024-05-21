@@ -33,7 +33,7 @@ func (gc GarbageCollector) Start(ctx context.Context) error {
 			controller.GateRemovalHistories.Range(func(imageHash, value interface{}) bool {
 				lastGateRemovalTime := time.UnixMilli(value.(int64))
 				// Delete history that has not been updated for a long time to prevent memory leaks.
-				if time.Since(lastGateRemovalTime) > time.Second*time.Duration(historyDeletionDuration) {
+				if time.Since(lastGateRemovalTime) > time.Duration(historyDeletionDuration)*time.Second {
 					logger.V(constants.LevelDebug).Info("delete old history", "image hash", imageHash, "lastGateRemovalTime", lastGateRemovalTime)
 					controller.GateRemovalHistories.Delete(imageHash)
 				}
