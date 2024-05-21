@@ -348,7 +348,7 @@ var _ = Describe("CatGate controller", func() {
 			})
 		}
 
-		for i := 0; i < 10; i++ {
+		for i := 0; i < 20; i++ {
 			createNewPod(testName, i)
 		}
 
@@ -362,8 +362,8 @@ var _ = Describe("CatGate controller", func() {
 					numSchedulable += 1
 				}
 			}
-			// image is present in the node, so 10 pods should be scheduled
-			g.Expect(numSchedulable).To(Equal(10))
+			// image is present in the node, so 20 pods should be scheduled
+			g.Expect(numSchedulable).To(Equal(20))
 		}).Should(Succeed())
 	})
 })
