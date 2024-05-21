@@ -343,8 +343,8 @@ var _ = Describe("CatGate controller", func() {
 		Expect(err).NotTo(HaveOccurred())
 		for _, node := range nodes.Items {
 			updateNodeImageStatus(&node, []corev1.Container{
-				{Image: fmt.Sprintf("%s.example.com/sample1-image:1.0.0", testName)},
-				{Image: fmt.Sprintf("%s.example.com/sample2-image:1.0.0", testName)},
+				{Image: fmt.Sprintf("%s.example.com/sample1-image:1.0.0", testName)}, // init container image
+				{Image: fmt.Sprintf("%s.example.com/sample2-image:1.0.0", testName)}, // container image
 			})
 		}
 
@@ -417,6 +417,7 @@ func scheduleAndStartPods(namespace string) {
 			node := &corev1.Node{}
 			err = k8sClient.Get(ctx, client.ObjectKey{Name: pod.Status.HostIP}, node)
 			Expect(err).NotTo(HaveOccurred())
+			updateNodeImageStatus(node, pod.Spec.InitContainers)
 			updateNodeImageStatus(node, pod.Spec.Containers)
 		}
 	}
@@ -434,6 +435,7 @@ func scheduleAndStartOnePod(namespace string) {
 			node := &corev1.Node{}
 			err = k8sClient.Get(ctx, client.ObjectKey{Name: pod.Status.HostIP}, node)
 			Expect(err).NotTo(HaveOccurred())
+			updateNodeImageStatus(node, pod.Spec.InitContainers)
 			updateNodeImageStatus(node, pod.Spec.Containers)
 			break
 		}
@@ -451,6 +453,7 @@ func scheduleSpecificNodeAndStartOnePod(namespace, nodeName string) {
 			node := &corev1.Node{}
 			err = k8sClient.Get(ctx, client.ObjectKey{Name: pod.Status.HostIP}, node)
 			Expect(err).NotTo(HaveOccurred())
+			updateNodeImageStatus(node, pod.Spec.InitContainers)
 			updateNodeImageStatus(node, pod.Spec.Containers)
 			break
 		}
@@ -468,6 +471,7 @@ func scheduleAndStartOneUnhealthyPod(namespace string) {
 			node := &corev1.Node{}
 			err = k8sClient.Get(ctx, client.ObjectKey{Name: pod.Status.HostIP}, node)
 			Expect(err).NotTo(HaveOccurred())
+			updateNodeImageStatus(node, pod.Spec.InitContainers)
 			updateNodeImageStatus(node, pod.Spec.Containers)
 			break
 		}

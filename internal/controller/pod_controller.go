@@ -94,6 +94,12 @@ func (r *PodReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.R
 	}
 
 	var reqImageList []string
+	for _, initContainer := range reqPod.Spec.InitContainers {
+		if initContainer.Image == "" {
+			continue
+		}
+		reqImageList = append(reqImageList, initContainer.Image)
+	}
 	for _, container := range reqPod.Spec.Containers {
 		if container.Image == "" {
 			continue
