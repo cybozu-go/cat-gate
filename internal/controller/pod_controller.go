@@ -44,9 +44,6 @@ const scaleRate = 2
 // minimumCapacity the number of scheduling gates to remove when no node have the image.
 const minimumCapacity = 1
 
-const levelWarning = 1
-const levelDebug = -1
-
 var requeueSeconds = 10
 var gateRemovalDelayMilliSecond = 10
 var GateRemovalHistories = sync.Map{}
@@ -77,7 +74,7 @@ func (r *PodReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.R
 
 	annotations := reqPod.Annotations
 	if _, ok := annotations[constants.CatGateImagesHashAnnotation]; !ok {
-		logger.V(levelWarning).Info("pod annotation not found")
+		logger.V(constants.LevelWarning).Info("pod annotation not found")
 		err := r.removeSchedulingGate(ctx, reqPod)
 		if err != nil {
 			logger.Error(err, "failed to remove scheduling gate")
@@ -91,7 +88,7 @@ func (r *PodReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.R
 	if value, ok := GateRemovalHistories.Load(reqImagesHash); ok {
 		lastGateRemovalTime := time.UnixMilli(value.(int64))
 		if time.Since(lastGateRemovalTime) < time.Millisecond*time.Duration(gateRemovalDelayMilliSecond) {
-			logger.V(levelDebug).Info("perform retry processing to avoid race conditions", "lastGateRemovalTime", lastGateRemovalTime)
+			logger.V(constants.LevelDebug).Info("perform retry processing to avoid race conditions", "lastGateRemovalTime", lastGateRemovalTime)
 			return ctrl.Result{RequeueAfter: time.Millisecond * time.Duration(gateRemovalDelayMilliSecond)}, nil
 		}
 	}
@@ -167,10 +164,10 @@ func (r *PodReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.R
 	if capacity < minimumCapacity {
 		capacity = minimumCapacity
 	}
-	logger.V(levelDebug).Info("schedule capacity", "capacity", capacity, "len(nodeSet)", len(nodeSet))
+	logger.V(constants.LevelDebug).Info("schedule capacity", "capacity", capacity, "len(nodeSet)", len(nodeSet))
 
 	numImagePullingPods := numSchedulablePods - numImagePulledPods
-	logger.V(levelDebug).Info("scheduling progress", "numSchedulablePods", numSchedulablePods, "numImagePulledPods", numImagePulledPods, "numImagePullingPods", numImagePullingPods)
+	logger.V(constants.LevelDebug).Info("scheduling progress", "numSchedulablePods", numSchedulablePods, "numImagePulledPods", numImagePulledPods, "numImagePullingPods", numImagePullingPods)
 
 	if capacity > numImagePullingPods {
 		err := r.removeSchedulingGate(ctx, reqPod)

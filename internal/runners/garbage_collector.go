@@ -4,11 +4,11 @@ import (
 	"context"
 	"time"
 
+	"github.com/cybozu-go/cat-gate/internal/constants"
 	"github.com/cybozu-go/cat-gate/internal/controller"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 )
 
-const levelDebug = -1
 const gcIntervalHours = 24
 
 var historyDeletionDuration = 24 * 60 * 60 // 1 day
@@ -34,7 +34,7 @@ func (gc GarbageCollector) Start(ctx context.Context) error {
 				lastGateRemovalTime := time.UnixMilli(value.(int64))
 				// Delete history that has not been updated for a long time to prevent memory leaks.
 				if time.Since(lastGateRemovalTime) > time.Second*time.Duration(historyDeletionDuration) {
-					logger.V(levelDebug).Info("delete old history", "image hash", imageHash, "lastGateRemovalTime", lastGateRemovalTime)
+					logger.V(constants.LevelDebug).Info("delete old history", "image hash", imageHash, "lastGateRemovalTime", lastGateRemovalTime)
 					controller.GateRemovalHistories.Delete(imageHash)
 				}
 				return true
