@@ -86,7 +86,7 @@ func (r *PodReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.R
 
 	// prevents removing the scheduling gate based on information before the cache is updated.
 	if value, ok := GateRemovalHistories.Load(reqImagesHash); ok {
-		lastGateRemovalTime := time.UnixMilli(value.(int64))
+		lastGateRemovalTime := value.(time.Time)
 		if time.Since(lastGateRemovalTime) < time.Duration(gateRemovalDelayMilliSecond)*time.Millisecond {
 			logger.V(constants.LevelDebug).Info("perform retry processing to avoid race conditions", "lastGateRemovalTime", lastGateRemovalTime)
 			return ctrl.Result{RequeueAfter: time.Duration(gateRemovalDelayMilliSecond) * time.Millisecond}, nil
@@ -181,7 +181,7 @@ func (r *PodReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.R
 			logger.Error(err, "failed to remove scheduling gate")
 			return ctrl.Result{}, err
 		}
-		now := time.Now().UnixMilli()
+		now := time.Now()
 		GateRemovalHistories.Store(reqImagesHash, now)
 		return ctrl.Result{}, nil
 	}
