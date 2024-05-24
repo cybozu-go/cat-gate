@@ -36,6 +36,7 @@ import (
 	"github.com/cybozu-go/cat-gate/hooks"
 	"github.com/cybozu-go/cat-gate/internal/controller"
 	"github.com/cybozu-go/cat-gate/internal/indexing"
+	"github.com/cybozu-go/cat-gate/internal/runners"
 	//+kubebuilder:scaffold:imports
 )
 
@@ -113,6 +114,11 @@ func main() {
 		os.Exit(1)
 	}
 	//+kubebuilder:scaffold:builder
+
+	if err = mgr.Add(runners.GarbageCollector{}); err != nil {
+		setupLog.Error(err, "unable to add garbage collector")
+		os.Exit(1)
+	}
 
 	if err := mgr.AddHealthzCheck("healthz", healthz.Ping); err != nil {
 		setupLog.Error(err, "unable to set up health check")
