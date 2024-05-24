@@ -324,7 +324,7 @@ var _ = Describe("CatGate controller", func() {
 		}).Should(Succeed())
 	})
 
-	It("Should more Pods be scheduled if images are present in a node, not limited to the number of Pods.", func() {
+	It("Should more Pods be scheduled if images are present in all nodes, not limited to the number of Pods.", func() {
 		testName := "already-images-in-node"
 		namespace := &corev1.Namespace{
 			ObjectMeta: metav1.ObjectMeta{
