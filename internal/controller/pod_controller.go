@@ -151,16 +151,7 @@ func (r *PodReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.R
 		}
 		numSchedulablePods += 1
 
-		allStarted := true
-		statuses := pod.Status.ContainerStatuses
-		for _, status := range statuses {
-			if status.State.Running == nil && status.State.Terminated == nil {
-				allStarted = false
-				break
-			}
-		}
-
-		if allStarted && len(pod.Spec.Containers) == len(statuses) {
+		if pod.Status.Phase != corev1.PodPending {
 			numImagePulledPods += 1
 		}
 	}

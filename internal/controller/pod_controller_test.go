@@ -412,7 +412,7 @@ func scheduleAndStartPods(namespace string) {
 
 	for _, pod := range pods.Items {
 		if !existsSchedulingGate(&pod) {
-			updatePodStatus(&pod, corev1.ContainerState{Running: &corev1.ContainerStateRunning{}})
+			updatePodStatus(&pod, corev1.ContainerState{Running: &corev1.ContainerStateRunning{}}, corev1.PodRunning)
 
 			node := &corev1.Node{}
 			err = k8sClient.Get(ctx, client.ObjectKey{Name: pod.Status.HostIP}, node)
@@ -430,7 +430,7 @@ func scheduleAndStartOnePod(namespace string) {
 
 	for _, pod := range pods.Items {
 		if !existsSchedulingGate(&pod) && len(pod.Status.ContainerStatuses) == 0 {
-			updatePodStatus(&pod, corev1.ContainerState{Running: &corev1.ContainerStateRunning{}})
+			updatePodStatus(&pod, corev1.ContainerState{Running: &corev1.ContainerStateRunning{}}, corev1.PodRunning)
 
 			node := &corev1.Node{}
 			err = k8sClient.Get(ctx, client.ObjectKey{Name: pod.Status.HostIP}, node)
@@ -449,7 +449,7 @@ func scheduleSpecificNodeAndStartOnePod(namespace, nodeName string) {
 
 	for _, pod := range pods.Items {
 		if !existsSchedulingGate(&pod) && len(pod.Status.ContainerStatuses) == 0 {
-			updatePodStatusWithHostIP(&pod, corev1.ContainerState{Running: &corev1.ContainerStateRunning{}}, nodeName)
+			updatePodStatusWithHostIP(&pod, corev1.ContainerState{Running: &corev1.ContainerStateRunning{}}, corev1.PodRunning, nodeName)
 			node := &corev1.Node{}
 			err = k8sClient.Get(ctx, client.ObjectKey{Name: pod.Status.HostIP}, node)
 			Expect(err).NotTo(HaveOccurred())
@@ -467,7 +467,7 @@ func scheduleAndStartOneUnhealthyPod(namespace string) {
 
 	for _, pod := range pods.Items {
 		if !existsSchedulingGate(&pod) && len(pod.Status.ContainerStatuses) == 0 {
-			updatePodStatus(&pod, corev1.ContainerState{Waiting: &corev1.ContainerStateWaiting{Reason: "RunContainerError"}})
+			updatePodStatus(&pod, corev1.ContainerState{Waiting: &corev1.ContainerStateWaiting{Reason: "RunContainerError"}}, corev1.PodPending)
 			node := &corev1.Node{}
 			err = k8sClient.Get(ctx, client.ObjectKey{Name: pod.Status.HostIP}, node)
 			Expect(err).NotTo(HaveOccurred())
@@ -478,7 +478,7 @@ func scheduleAndStartOneUnhealthyPod(namespace string) {
 	}
 }
 
-func updatePodStatus(pod *corev1.Pod, state corev1.ContainerState) {
+func updatePodStatus(pod *corev1.Pod, state corev1.ContainerState, phase corev1.PodPhase) {
 	pod.Status.ContainerStatuses = []corev1.ContainerStatus{
 		{
 			State: state,
@@ -490,16 +490,18 @@ func updatePodStatus(pod *corev1.Pod, state corev1.ContainerState) {
 	idx := regex.FindStringIndex(podName)
 	nodeName := podName[:idx[0]] + strings.Replace(podName[idx[0]:], "pod", "node", 1)
 	pod.Status.HostIP = nodeName
+	pod.Status.Phase = phase
 	err = k8sClient.Status().Update(ctx, pod)
 	Expect(err).NotTo(HaveOccurred())
 }
 
-func updatePodStatusWithHostIP(pod *corev1.Pod, state corev1.ContainerState, nodeName string) {
+func updatePodStatusWithHostIP(pod *corev1.Pod, state corev1.ContainerState, phase corev1.PodPhase, nodeName string) {
 	pod.Status.ContainerStatuses = []corev1.ContainerStatus{
 		{
 			State: state,
 		},
 	}
+	pod.Status.Phase = phase
 	pod.Status.HostIP = nodeName
 	err := k8sClient.Status().Update(ctx, pod)
 	Expect(err).NotTo(HaveOccurred())
