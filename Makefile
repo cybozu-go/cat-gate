@@ -2,7 +2,7 @@
 # Image URL to use all building/pushing image targets
 IMG ?= cat-gate:dev
 # ENVTEST_K8S_VERSION refers to the version of kubebuilder assets to be downloaded by envtest binary.
-ENVTEST_K8S_VERSION = 1.29.1
+ENVTEST_K8S_VERSION = 1.29.5
 CERT_MANAGER_VERSION := 1.14.4
 
 # Get the currently used golang install path (in GOPATH/bin, unless GOBIN is set)
@@ -162,7 +162,7 @@ ENVTEST ?= $(LOCALBIN)/setup-envtest
 
 ## Tool Versions
 KUSTOMIZE_VERSION ?= v5.3.0
-CONTROLLER_TOOLS_VERSION ?= v0.14.0
+CONTROLLER_TOOLS_VERSION ?= v0.15.0
 
 .PHONY: kustomize
 kustomize: $(KUSTOMIZE) ## Download kustomize locally if necessary. If wrong version is installed, it will be removed before downloading.
