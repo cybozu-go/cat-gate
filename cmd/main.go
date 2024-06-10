@@ -100,6 +100,7 @@ func main() {
 
 	if err = indexing.SetupIndexForPod(ctx, mgr); err != nil {
 		setupLog.Error(err, "unable to create index for pod")
+		os.Exit(1)
 	}
 
 	if err = (&controller.PodReconciler{
