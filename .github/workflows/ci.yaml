@@ -10,7 +10,7 @@ jobs:
     runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-go@v4
+      - uses: actions/setup-go@v5
         with:
           go-version-file: go.mod
       - run: make check-generate
@@ -21,7 +21,7 @@ jobs:
     # TODO: add test matrix for kubernetes version
     steps:
     - uses: actions/checkout@v4
-    - uses: actions/setup-go@v4
+    - uses: actions/setup-go@v5
       with:
         go-version-file: go.mod
         cache: true
@@ -40,7 +40,7 @@ jobs:
         with:
           fetch-depth: 0
       - name: Setup golang
-        uses: actions/setup-go@v4
+        uses: actions/setup-go@v5
         with:
           go-version-file: 'go.mod'
       - name: Setup tag for goreleaser
@@ -50,5 +50,5 @@ jobs:
         uses: 'goreleaser/goreleaser-action@v5'
         with:
           distribution: goreleaser
-          version: v1.24.0
+          version: v1.26.2
           args: --snapshot --skip-publish --rm-dist
