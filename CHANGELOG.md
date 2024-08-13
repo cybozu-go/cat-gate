@@ -5,6 +5,8 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased]
 
+- Supports k8s 1.30 [#25](https://github.com/cybozu-go/cat-gate/pull/25)
+
 ## [0.1.5]
 
 ### Changed

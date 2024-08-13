@@ -7,5 +7,5 @@ apiVersion: ctlptl.dev/v1alpha1
 kind: Cluster
 name: kind-cat-gate-dev
 product: kind
-kubernetesVersion: v1.29.4
+kubernetesVersion: v1.30.0
 registry: cat-gate-registry
