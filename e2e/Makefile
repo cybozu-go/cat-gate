@@ -1,5 +1,5 @@
 # NOTE: kind version is specified at aqua.yaml
-E2ETEST_K8S_VERSION  := 1.30.0
+E2ETEST_K8S_VERSION  := 1.30.4
 CERT_MANAGER_VERSION := 1.15.0
 
 PROJECT_DIR := $(CURDIR)/../
